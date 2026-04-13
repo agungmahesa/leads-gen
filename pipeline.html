@@ -39,10 +39,27 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               </div>
               <div class="card-title-group">
-                <h3 class="card-title">Step 1: Scrape Leads</h3>
+                <h3 class="card-title">Step 1: Source Data</h3>
                 <span class="step-badge" id="badge-step1">Idle</span>
               </div>
             </div>
+
+            <!-- Upload Zone -->
+            <div class="upload-section" style="margin-bottom: 20px; text-align: center;">
+              <div class="form-label" style="text-align: left; margin-bottom: 10px;">A. Upload File (CSV / XLSX)</div>
+              <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('csvFile').click()">
+                 <input type="file" id="csvFile" accept=".csv, .xlsx, .xls" style="display:none;" onchange="handleFileUpload(event)">
+                 <div class="upload-hint" id="uploadDropText">
+                    📁 Drop file CSV/XLSX dari Outscraper atau klik untuk upload.
+                 </div>
+              </div>
+              <div class="upload-status" id="uploadStatus" style="display: none;">
+                 <div class="upload-status-inner" id="uploadStatusText">Memproses file...</div>
+              </div>
+            </div>
+
+            <hr style="border:0; border-top:1px solid var(--border); margin:24px 0;" />
+            <div class="form-label" style="margin-bottom: 15px;">B. Real-time Google Maps Scrape (Local)</div>
 
             <div class="form-group">
               <label class="form-label">Search Keywords</label>

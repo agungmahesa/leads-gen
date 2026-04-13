@@ -60,19 +60,6 @@
                   Load from Airtable
                 </button>
 
-                <div class="upload-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); text-align: center;">
-                  <div class="form-label" style="text-align: left; margin-bottom: 10px;">Atau Upload File (CSV / XLSX)</div>
-                  <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('csvFile').click()">
-                     <input type="file" id="csvFile" accept=".csv, .xlsx, .xls" style="display:none;" onchange="handleFileUpload(event)">
-                     <div class="upload-hint" id="uploadDropText">
-                        📁 Drop file CSV/XLSX dari Outscraper atau klik untuk upload.
-                     </div>
-                  </div>
-                  <div class="upload-status" id="uploadStatus" style="display: none;">
-                     <div class="upload-status-inner" id="uploadStatusText">Memproses file...</div>
-                  </div>
-                </div>
-
                 <div id="fetchStatus" style="font-size: .75rem; color: var(--text-muted); margin-top: 12px; display: none; text-align:center;">
                   ✓ Found <span id="fetchCount" style="color:var(--green); font-weight:600;">0</span> leads
                 </div>
