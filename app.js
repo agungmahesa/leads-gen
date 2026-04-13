@@ -6,7 +6,7 @@
 
 // ─── AUTHENTICATION CHECK ─────────────────────────
 const APP_TOKEN = localStorage.getItem('appToken');
-const backendUrl = 'http://localhost:3001';
+const backendUrl = 'https://leads-gen-production-461b.up.railway.app';
 
 if (!APP_TOKEN && window.location.pathname !== '/login.html' && !window.location.pathname.endsWith('login.html')) {
   window.location.href = '/login.html';
