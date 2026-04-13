@@ -214,7 +214,7 @@ function startBackendHeartbeat() {
     const text = document.getElementById('backendStatusText');
     
     try {
-      const res = await fetch('http://localhost:3001/status');
+      const res = await fetch(`${backendUrl}/status`);
       if (res.ok) {
         dot.className = 'status-dot status-dot--success';
         text.textContent = 'Backend: Online';
