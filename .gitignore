@@ -1,5 +1,7 @@
 # Secrets and Config
 .env
+ai-config.json
+sys-config.json
 
 # WA Baileys Session storage (Do not publish!)
 auth/
@@ -11,6 +13,9 @@ node_modules/
 # Logs
 backend.log
 *.log
+
+# Dev scratch
+scratch/
 
 # Mac OS files
 .DS_Store
