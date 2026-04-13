@@ -1125,6 +1125,7 @@ async function fetchLeadsFromAirtableWithStatus() {
 
   if (!apiKey || !baseId || !tableName) {
     showError('Airtable Config belum lengkap! Isi dulu di halaman Settings.');
+    alert('Buka halaman "Settings" dan masukkan Airtable Key/Base/Table di Railway Environment Variables terlebih dahulu!');
     return;
   }
 
@@ -1138,6 +1139,12 @@ async function fetchLeadsFromAirtableWithStatus() {
 
   const limit = safeGet('sendLimit')?.value || 100;
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?maxRecords=${limit}${filter}`;
+
+  const btn = document.getElementById('btnLoadAirtable');
+  if(btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Loading dari Airtable...`;
+  }
 
   addLog(`Fetching leads from Airtable (${targetStatus || 'All'})...`, 'info');
   setStepBadge('step3', 'Fetching…', 'running');
@@ -1155,35 +1162,41 @@ async function fetchLeadsFromAirtableWithStatus() {
       setStepBadge('step3', 'Empty');
       STATE.waLeads = [];
       renderTargetLeads();
-      return;
-    }
+      alert(`Tidak ada prospek(leads) ditemukan dengan status "${targetStatus || 'All'}".\nCoba pilih status lain.`);
+    } else {
+      // Map Airtable records back to our internal lead format
+      const revFieldMap = {};
+      Object.entries(fieldMap).forEach(([k, v]) => revFieldMap[v] = k);
 
-    // Map Airtable records back to our internal lead format
-    const revFieldMap = {};
-    Object.entries(fieldMap).forEach(([k, v]) => revFieldMap[v] = k);
-
-    STATE.waLeads = data.records.map(rec => {
-      const lead = { id_airtable: rec.id };
-      // Map all fields directly by their Airtable name
-      Object.entries(rec.fields).forEach(([fName, val]) => {
-        lead[fName.toLowerCase().replace(/\s+/g, '_')] = val; // normalize key
-        const leadKey = revFieldMap[fName];
-        if (leadKey) lead[leadKey] = val;
+      STATE.waLeads = data.records.map(rec => {
+        const lead = { id_airtable: rec.id };
+        Object.entries(rec.fields).forEach(([fName, val]) => {
+          lead[fName.toLowerCase().replace(/\s+/g, '_')] = val;
+          const leadKey = revFieldMap[fName];
+          if (leadKey) lead[leadKey] = val;
+        });
+        if (!lead.name && rec.fields[fieldMap.name]) lead.name = rec.fields[fieldMap.name];
+        return lead;
       });
-      if (!lead.name && rec.fields[fieldMap.name]) lead.name = rec.fields[fieldMap.name];
-      return lead;
-    });
 
-    safeSetStyle('fetchStatus', 'display', 'block');
-    safeSetText('fetchCount', STATE.waLeads.length);
-    addLog(`✓ Berhasil mengambil ${STATE.waLeads.length} lead dari Airtable.`, 'ok');
-    setStepBadge('step3', 'Ready');
-    renderTargetLeads();
+      safeSetStyle('fetchStatus', 'display', 'block');
+      safeSetText('fetchCount', STATE.waLeads.length);
+      addLog(`✓ Berhasil mengambil ${STATE.waLeads.length} lead dari Airtable.`, 'ok');
+      setStepBadge('step3', 'Ready');
+      renderTargetLeads();
+      alert(`✅ Berhasil load ${STATE.waLeads.length} leads data dari Airtable!`);
+    }
 
   } catch (err) {
     addLog(`✗ Gagal fetch Airtable: ${err.message}`, 'error');
     showError(`Airtable Fetch Error: ${err.message}`);
     setStepBadge('step3', 'Error', 'error');
+    alert(`❌ Gagal Load dari Airtable:\n\nPesan Error: ${err.message}\n\nPastikan Airtable Config di Railway sudah 100% benar (huruf besar/kecil berpengaruh).`);
+  } finally {
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load from Airtable`;
+    }
   }
 }
 
