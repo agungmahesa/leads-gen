@@ -1,14 +1,21 @@
 {
   "version": 2,
-  "buildCommand": "mkdir -p dist && cp *.html *.css *.js dist/ 2>/dev/null || true",
-  "outputDirectory": "dist",
-  "cleanUrls": true,
-  "headers": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff"
+      },
+      "dest": "/$1"
     }
   ]
 }

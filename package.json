@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "build": "mkdir -p dist && cp *.html *.js *.css dist/ 2>/dev/null || true"
   },
   "dependencies": {
     "@google/genai": "^1.49.0",
