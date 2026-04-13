@@ -2,10 +2,7 @@
   "version": 2,
   "buildCommand": "echo 'Static frontend - no build needed'",
   "outputDirectory": ".",
-  "routes": [
-    { "src": "/api/(.*)", "dest": "https://YOUR_BACKEND_URL/api/$1" },
-    { "src": "/(.*)", "dest": "/$1" }
-  ],
+  "cleanUrls": true,
   "headers": [
     {
       "source": "/(.*)",
