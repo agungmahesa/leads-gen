@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Static frontend - no build needed'",
-  "outputDirectory": ".",
+  "buildCommand": "mkdir -p dist && cp *.html *.css *.js dist/ 2>/dev/null || true",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "headers": [
     {
