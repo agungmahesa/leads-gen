@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Configuration - LeadGen Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar will be injected here by navbar.js -->
+
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <h2 style="margin:0; font-size:1.2rem;">System Configuration</h2>
+          <span style="color:var(--text-muted); font-size:.8rem; margin-left:12px;">Global API & Platform Settings</span>
+        </div>
+      </header>
+
+      <div class="view-content" style="padding: 24px; max-width: 900px; margin: 0 auto;">
+        
+        <!-- Airtable Settings -->
+        <div class="card" style="margin-bottom: 24px;">
+           <div class="card-header">
+             <div class="card-icon card-icon--cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+             <h3 class="card-title">Airtable Integration</h3>
+           </div>
+           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+              <div class="form-group">
+                <label class="form-label">Personal Access Token (PAT)</label>
+                <input type="password" id="airtableKey" class="form-input" placeholder="pat.xxx..." />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Base ID</label>
+                <input type="text" id="airtableBase" class="form-input" placeholder="app..." />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Table Name</label>
+                <input type="text" id="airtableTable" class="form-input" placeholder="Leads" />
+              </div>
+              <div class="form-group" style="display:flex; align-items:flex-end;">
+                <button class="btn btn-cyan" style="width:100%" onclick="saveAirtableConfig()">Save Airtable Config</button>
+              </div>
+           </div>
+        </div>
+
+        <!-- AI Agent Settings -->
+        <div class="card" style="margin-bottom: 24px;">
+           <div class="card-header">
+             <div class="card-icon card-icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><path d="M9 16v-2"/><path d="M15 16v-2"/></svg></div>
+             <div class="card-title-group">
+               <h3 class="card-title">AI Sales Representative</h3>
+               <label class="switch" style="scale:0.8;">
+                 <input type="checkbox" id="aiMasterSwitch">
+                 <span class="slider"></span>
+               </label>
+             </div>
+           </div>
+           <div class="form-group">
+             <label class="form-label">Google Gemini API Key</label>
+             <input type="password" id="geminiKey" class="form-input" placeholder="AIzaSy..." />
+           </div>
+           <div class="form-group">
+             <label class="form-label">AI Persona & Global Prompt</label>
+             <textarea id="aiPrompt" class="form-input" style="height: 120px;" placeholder="Anda adalah Sales representative..."></textarea>
+           </div>
+           <button class="btn btn-primary" style="width:100%" id="btnSaveAi" onclick="saveAiConfig()">Update AI Persona</button>
+        </div>
+
+        <!-- Scraping & Platform Settings -->
+        <div class="card">
+           <div class="card-header">
+             <div class="card-icon card-icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+             <h3 class="card-title">Outscraper Platform</h3>
+           </div>
+           <div class="form-group">
+             <label class="form-label">Outscraper API Key</label>
+             <input type="password" id="outscraperKey" class="form-input" placeholder="out_xxx..." />
+           </div>
+           <button class="btn btn-ghost" style="width:100%" onclick="saveOutscraperConfig()">Save API Key</button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="navbar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -98,7 +98,7 @@
   <script src="navbar.js"></script>
   <script>
     const APP_TOKEN = localStorage.getItem('appToken');
-    const backendUrl = 'https://leads-gen-production-461b.up.railway.app';
+    const backendUrl = 'http://localhost:3001';
     if (!APP_TOKEN) window.location.href = '/login.html';
 
     let activeChatId = null;

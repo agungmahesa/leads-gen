@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
@@ -40,37 +39,10 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               </div>
               <div class="card-title-group">
-                <h3 class="card-title">Step 1: Source Data</h3>
+                <h3 class="card-title">Step 1: Scrape Leads</h3>
                 <span class="step-badge" id="badge-step1">Idle</span>
               </div>
             </div>
-
-            <!-- Upload Zone -->
-            <div class="upload-section" style="margin-bottom: 20px; text-align: center;">
-              <div class="form-label" style="text-align: left; margin-bottom: 10px;">A. Upload File (CSV / XLSX)</div>
-              <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('csvFile').click()">
-                 <input type="file" id="csvFile" accept=".csv, .xlsx, .xls" style="display:none;" onchange="handleFileUpload(event)">
-                 <div class="upload-hint" id="uploadDropText">
-                    📁 Drop file CSV/XLSX dari Outscraper atau klik untuk upload.
-                 </div>
-              </div>
-              <div class="upload-status" id="uploadStatus" style="display: flex; margin-top:8px;">
-                 <div class="upload-status-inner" id="uploadStatusText">Siap menerima file CSV/XLSX dari Outscraper</div>
-              </div>
-              <!-- Preview Table after upload -->
-              <div id="uploadPreviewBox" style="display:none; margin-top:16px;">
-                <div style="font-size:.8rem; font-weight:600; margin-bottom:8px; color:var(--text);">Preview (<span id="uploadPreviewCount">0</span> leads) — max 50 rows shown</div>
-                <div class="table-container" style="max-height:240px; overflow-y:auto; font-size:.78rem;">
-                  <table>
-                    <thead><tr><th>Name</th><th>Phone</th><th>City/Address</th><th>Rating</th></tr></thead>
-                    <tbody id="uploadPreviewBody"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <hr style="border:0; border-top:1px solid var(--border); margin:24px 0;" />
-            <div class="form-label" style="margin-bottom: 15px;">B. Real-time Google Maps Scrape (Local)</div>
 
             <div class="form-group">
               <label class="form-label">Search Keywords</label>
@@ -83,11 +55,11 @@
             </div>
 
             <div class="card-actions" style="margin-top:20px;">
-              <button class="btn btn-primary" id="startScrapeBtn" onclick="startScraping()">
+              <button class="btn btn-primary" id="startScrapeBtn" onclick="startScraper()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>
                 Start Scraper
               </button>
-              <button class="btn btn-error" id="stopScrapeBtn" onclick="stopScraping()" style="display:none;">
+              <button class="btn btn-error" id="stopScrapeBtn" onclick="stopScraper()" style="display:none;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg>
                 Stop
               </button>
@@ -102,8 +74,6 @@
                 <div id="scrapeBar" class="progress-bar progress-bar--blue" style="width: 0%"></div>
               </div>
             </div>
-            <!-- alias for legacy scrapeProgress ID -->
-            <div id="scrapeProgress" style="display:none;"></div>
           </div>
 
           <!-- Column 2: Airtable Sync -->

@@ -214,7 +214,7 @@ function startBackendHeartbeat() {
     const text = document.getElementById('backendStatusText');
     
     try {
-      const res = await fetch(`${backendUrl}/status`);
+      const res = await fetch('http://localhost:3001/status');
       if (res.ok) {
         dot.className = 'status-dot status-dot--success';
         text.textContent = 'Backend: Online';
@@ -544,61 +544,35 @@ function mapOutscraperRow(raw, idx) {
 
 function applyUploadedLeads(leads, filename, statusTextEl, dropTextEl) {
   if (!leads.length) {
-    if (statusTextEl) statusTextEl.textContent = 'Tidak ada data valid ditemukan dalam file.';
+    statusTextEl.textContent = 'Tidak ada data valid ditemukan dalam file.';
     addLog(`Upload "${filename}": no valid rows found.`, 'warn');
     return;
   }
   
-  // Merge with existing
+  // Merge or replace
   const prevCount = STATE.scrapedLeads.length;
   STATE.scrapedLeads = [...STATE.scrapedLeads, ...leads];
-  // Auto-select all for Airtable sync
-  STATE.selectedLeads = STATE.scrapedLeads.map((_, i) => i);
   STATE.totalLeadsToday += leads.length;
   
-  // ── Update pipeline.html preview table ────────────
-  const previewTable = document.getElementById('uploadPreviewBody');
-  const previewBox = document.getElementById('uploadPreviewBox');
-  const previewCount = document.getElementById('uploadPreviewCount');
-  const pendingCount = document.getElementById('pendingAirtableCount');
-
-  if (previewTable && previewBox) {
-    previewBox.style.display = 'block';
-    previewTable.innerHTML = leads.slice(0, 50).map(l => `
-      <tr>
-        <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(l.name || '—')}</td>
-        <td>${escHtml(l.phone || '—')}</td>
-        <td>${escHtml(l.city || l.address?.substring(0,20) || '—')}</td>
-        <td>⭐ ${l.rating || '—'}</td>
-      </tr>`).join('');
-    if (previewCount) previewCount.textContent = STATE.scrapedLeads.length;
-    if (pendingCount) pendingCount.textContent = STATE.scrapedLeads.length;
-  }
-
-  // ── Legacy index.html elements (if present) ───────
+  // Re-render results list
   const resultsList = document.getElementById('resultsList');
-  if (resultsList) {
-    resultsList.innerHTML = '';
-    STATE.scrapedLeads.forEach((lead, i) => {
-      const item = renderResultItem(lead, i + 1);
-      resultsList.appendChild(item);
-    });
-  }
-  const resultsTitle = document.getElementById('resultsTitle');
-  if (resultsTitle) resultsTitle.textContent = `Results (${STATE.scrapedLeads.length})`;
+  resultsList.innerHTML = '';
+  STATE.scrapedLeads.forEach((lead, i) => {
+    const item = renderResultItem(lead, i + 1);
+    resultsList.appendChild(item);
+  });
   
+  document.getElementById('resultsTitle').textContent = `Results (${STATE.scrapedLeads.length})`;
   setStepBadge('step1', `Uploaded (${leads.length})`, 'success');
-  setStepBadge('step2', 'Ready to Sync', 'success');
   populateLeadTable();
   updateMonitor();
   
   const msg = prevCount > 0 
-    ? `${leads.length} leads diimport dari "${filename}" (+ ${prevCount} sebelumnya)`
-    : `${leads.length} leads diimport dari "${filename}"`;
-  if (statusTextEl) statusTextEl.textContent = `✓ ${msg}`;
-  if (dropTextEl) dropTextEl.innerHTML = `📄 <strong>${escHtml(filename)}</strong> — ${leads.length} leads. <u>Upload lain</u>`;
+    ? `${leads.length} leads imported from "${filename}" (+ ${prevCount} existing)`
+    : `${leads.length} leads imported from "${filename}"`;
+  statusTextEl.textContent = `✓ ${msg}`;
+  dropTextEl.innerHTML = `📄 <strong>${escHtml(filename)}</strong> — ${leads.length} leads. <u>Upload lain</u>`;
   addLog(`✓ Upload success: ${leads.length} leads from "${filename}"`, 'ok');
-  showToast(`✅ ${leads.length} leads siap di-sync ke Airtable!`);
 }
 
 // ─── Log System ───────────────────────────────────
@@ -746,15 +720,13 @@ function updateWaStats() {
 // STEP 1: SCRAPING
 // ════════════════════════════════════════════════
 async function startScraping() {
-  // Support both old IDs (keyword/location/limit) and new pipeline IDs (keywords/limitPerKeyword)
-  const keywordEl = document.getElementById('keywords') || document.getElementById('keyword');
-  const limitEl = document.getElementById('limitPerKeyword') || document.getElementById('limit');
-  const keyword = (keywordEl?.value || '').trim();
-  const limit = parseInt(limitEl?.value) || 50;
+  const keyword = document.getElementById('keyword').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const limit = parseInt(document.getElementById('limit').value);
 
-  if (!keyword) {
-    showError('Isi keyword terlebih dahulu!');
-    if (keywordEl) flashInput(keywordEl.id);
+  if (!keyword || !location) {
+    showError('Isi keyword dan lokasi terlebih dahulu!');
+    flashInput(!keyword ? 'keyword' : 'location');
     return;
   }
 
@@ -995,42 +967,33 @@ function deleteSelectedLeads() {
 }
 
 async function sendToAirtable() {
-  // Use selected leads — or ALL scraped leads if none selected (pipeline.html workflow)
-  const leadsToSync = STATE.selectedLeads.length
-    ? STATE.selectedLeads.map(idx => STATE.scrapedLeads[idx])
-    : STATE.scrapedLeads;
-
-  if (!leadsToSync.length) {
-    showError('Tidak ada lead! Upload file atau scrape data terlebih dahulu.');
+  if (!STATE.selectedLeads.length) {
+    showError('Pilih minimal 1 lead untuk dikirim ke Airtable!');
     return;
   }
 
   // ── Validate Config ──────────────────────────────
-  const apiKey = CONFIG.airtableKey || '';
-  const baseId = CONFIG.airtableBase || '';
-  const tableName = CONFIG.airtableTable || '';
+  const apiKey = CONFIG.airtableKey || document.getElementById('airtableKey').value.trim();
+  const baseId = CONFIG.airtableBase || document.getElementById('airtableBase').value.trim();
+  const tableName = CONFIG.airtableTable || document.getElementById('airtableTable').value.trim();
 
-  if (!apiKey) { showError('Airtable API Key belum diisi! Set di Railway Environment Variables: AIRTABLE_KEY'); return; }
-  if (!baseId) { showError('Airtable Base ID belum diisi! Set: AIRTABLE_BASE'); return; }
-  if (!tableName) { showError('Airtable Table Name belum diisi! Set: AIRTABLE_TABLE'); return; }
+  if (!apiKey) { showError('Airtable API Key belum diisi. Buka ⚙ Settings atau Airtable Config.'); flashInput('airtableKey'); return; }
+  if (!baseId) { showError('Airtable Base ID belum diisi.'); flashInput('airtableBase'); return; }
+  if (!tableName) { showError('Airtable Table Name belum diisi.'); flashInput('airtableTable'); return; }
 
   STATE.isInsertingActive = true;
   STATE.insertAbort = false;
   STATE.insertSuccess = 0;
   STATE.insertFailed = 0;
 
-  const selectedLeadObjects = leadsToSync;
+  const selectedLeadObjects = STATE.selectedLeads.map(idx => STATE.scrapedLeads[idx]);
   const total = selectedLeadObjects.length;
 
-  // Support both old (airtableProgress) and new (airtableProgressBox) element IDs
-  safeSetStyle('sendAirtableBtn', 'display', 'none');
-  safeSetStyle('stopAirtableBtn', 'display', 'flex');
-  const progressEl = document.getElementById('airtableProgressBox') || document.getElementById('airtableProgress');
-  if (progressEl) progressEl.style.display = 'flex';
-  const barEl = document.getElementById('airtableBar');
-  if (barEl) barEl.style.width = '0%';
-  const countEl = document.getElementById('airtableCount');
-  if (countEl) countEl.textContent = `0 / ${total}`;
+  document.getElementById('sendAirtableBtn').style.display = 'none';
+  document.getElementById('stopAirtableBtn').style.display = 'flex';
+  document.getElementById('airtableProgress').style.display = 'flex';
+  document.getElementById('airtableBar').style.width = '0%';
+  document.getElementById('airtableCount').textContent = `0 / ${total}`;
 
   setStepBadge('step2', 'Inserting…', 'running');
   updateGlobalStatus('Airtable insert', 'warning');
@@ -1109,21 +1072,18 @@ async function sendToAirtable() {
 
     processed = Math.min(i + BATCH, total);
     const pct = Math.round((processed / total) * 100);
-    const barEl2 = document.getElementById('airtableBar');
-    const cntEl2 = document.getElementById('airtableCount');
-    if (barEl2) barEl2.style.width = pct + '%';
-    if (cntEl2) cntEl2.textContent = `${processed} / ${total}`;
-    safeSetText('insertSuccess', `✓ ${STATE.insertSuccess} inserted`);
-    safeSetText('insertFailed', `✗ ${STATE.insertFailed} failed`);
-    updateMonitor();
+    document.getElementById('airtableBar').style.width = pct + '%';
+    document.getElementById('airtableCount').textContent = `${processed} / ${total}`;
+    document.getElementById('insertSuccess').textContent = `✓ ${STATE.insertSuccess} inserted`;
+    document.getElementById('insertFailed').textContent = `✗ ${STATE.insertFailed} failed`;
 
     // Small delay between batches to respect rate limits (5 req/s)
     if (i + BATCH < total && !STATE.insertAbort) await sleep(250);
-  } // end for loop
+  }
 
   STATE.isInsertingActive = false;
-  safeSetStyle('sendAirtableBtn', 'display', 'flex');
-  safeSetStyle('stopAirtableBtn', 'display', 'none');
+  document.getElementById('sendAirtableBtn').style.display = 'flex';
+  document.getElementById('stopAirtableBtn').style.display = 'none';
 
   if (STATE.insertAbort) {
     setStepBadge('step2', 'Stopped', 'error');
@@ -1131,22 +1091,23 @@ async function sendToAirtable() {
   } else {
     if (STATE.insertFailed === 0) {
       setStepBadge('step2', `Done (${STATE.insertSuccess}/${total})`, 'success');
-      safeSetText('airtableProgressLabel', `✓ Complete — ${STATE.insertSuccess} records inserted`);
+      document.getElementById('airtableProgressLabel').textContent =
+        `✓ Complete — ${STATE.insertSuccess} records inserted`;
       updateGlobalStatus('Step 2 done', 'active');
     } else {
       setStepBadge('step2', `Partial (${STATE.insertSuccess}/${total})`, 'error');
-      safeSetText('airtableProgressLabel', `⚠ ${STATE.insertSuccess} inserted, ${STATE.insertFailed} failed`);
+      document.getElementById('airtableProgressLabel').textContent =
+        `⚠ ${STATE.insertSuccess} inserted, ${STATE.insertFailed} failed`;
     }
     addLog(`Airtable done: ${STATE.insertSuccess} success, ${STATE.insertFailed} failed.`, STATE.insertFailed ? 'warn' : 'ok');
-    showToast(`✅ Sync selesai! ${STATE.insertSuccess} leads berhasil masuk ke Airtable.`);
   }
 }
 
 function stopAirtable() {
   STATE.insertAbort = true;
   STATE.isInsertingActive = false;
-  safeSetStyle('sendAirtableBtn', 'display', 'flex');
-  safeSetStyle('stopAirtableBtn', 'display', 'none');
+  document.getElementById('sendAirtableBtn').style.display = 'flex';
+  document.getElementById('stopAirtableBtn').style.display = 'none';
   addLog('Airtable insert stopped by user.', 'warn');
 }
 
@@ -1164,7 +1125,6 @@ async function fetchLeadsFromAirtableWithStatus() {
 
   if (!apiKey || !baseId || !tableName) {
     showError('Airtable Config belum lengkap! Isi dulu di halaman Settings.');
-    alert('Buka halaman "Settings" dan masukkan Airtable Key/Base/Table di Railway Environment Variables terlebih dahulu!');
     return;
   }
 
@@ -1178,12 +1138,6 @@ async function fetchLeadsFromAirtableWithStatus() {
 
   const limit = safeGet('sendLimit')?.value || 100;
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?maxRecords=${limit}${filter}`;
-
-  const btn = document.getElementById('btnLoadAirtable');
-  if(btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Loading dari Airtable...`;
-  }
 
   addLog(`Fetching leads from Airtable (${targetStatus || 'All'})...`, 'info');
   setStepBadge('step3', 'Fetching…', 'running');
@@ -1201,41 +1155,35 @@ async function fetchLeadsFromAirtableWithStatus() {
       setStepBadge('step3', 'Empty');
       STATE.waLeads = [];
       renderTargetLeads();
-      alert(`Tidak ada prospek(leads) ditemukan dengan status "${targetStatus || 'All'}".\nCoba pilih status lain.`);
-    } else {
-      // Map Airtable records back to our internal lead format
-      const revFieldMap = {};
-      Object.entries(fieldMap).forEach(([k, v]) => revFieldMap[v] = k);
-
-      STATE.waLeads = data.records.map(rec => {
-        const lead = { id_airtable: rec.id };
-        Object.entries(rec.fields).forEach(([fName, val]) => {
-          lead[fName.toLowerCase().replace(/\s+/g, '_')] = val;
-          const leadKey = revFieldMap[fName];
-          if (leadKey) lead[leadKey] = val;
-        });
-        if (!lead.name && rec.fields[fieldMap.name]) lead.name = rec.fields[fieldMap.name];
-        return lead;
-      });
-
-      safeSetStyle('fetchStatus', 'display', 'block');
-      safeSetText('fetchCount', STATE.waLeads.length);
-      addLog(`✓ Berhasil mengambil ${STATE.waLeads.length} lead dari Airtable.`, 'ok');
-      setStepBadge('step3', 'Ready');
-      renderTargetLeads();
-      alert(`✅ Berhasil load ${STATE.waLeads.length} leads data dari Airtable!`);
+      return;
     }
+
+    // Map Airtable records back to our internal lead format
+    const revFieldMap = {};
+    Object.entries(fieldMap).forEach(([k, v]) => revFieldMap[v] = k);
+
+    STATE.waLeads = data.records.map(rec => {
+      const lead = { id_airtable: rec.id };
+      // Map all fields directly by their Airtable name
+      Object.entries(rec.fields).forEach(([fName, val]) => {
+        lead[fName.toLowerCase().replace(/\s+/g, '_')] = val; // normalize key
+        const leadKey = revFieldMap[fName];
+        if (leadKey) lead[leadKey] = val;
+      });
+      if (!lead.name && rec.fields[fieldMap.name]) lead.name = rec.fields[fieldMap.name];
+      return lead;
+    });
+
+    safeSetStyle('fetchStatus', 'display', 'block');
+    safeSetText('fetchCount', STATE.waLeads.length);
+    addLog(`✓ Berhasil mengambil ${STATE.waLeads.length} lead dari Airtable.`, 'ok');
+    setStepBadge('step3', 'Ready');
+    renderTargetLeads();
 
   } catch (err) {
     addLog(`✗ Gagal fetch Airtable: ${err.message}`, 'error');
     showError(`Airtable Fetch Error: ${err.message}`);
     setStepBadge('step3', 'Error', 'error');
-    alert(`❌ Gagal Load dari Airtable:\n\nPesan Error: ${err.message}\n\nPastikan Airtable Config di Railway sudah 100% benar (huruf besar/kecil berpengaruh).`);
-  } finally {
-    if(btn) {
-      btn.disabled = false;
-      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load from Airtable`;
-    }
   }
 }
 
@@ -1463,7 +1411,7 @@ async function startWhatsApp() {
       }
 
       document.getElementById('waProgressLabel').textContent = `Sending to ${lead.name || lead.business_name || 'Customer'}…`;
-      const res = await fetch(`${backendUrl}/send-message`, {
+      const res = await fetch('http://localhost:3001/send-message', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -1472,7 +1420,7 @@ async function startWhatsApp() {
         body: JSON.stringify({ 
           phone: lead.phone || lead[fieldMap.phone], 
           message: msg,
-          recordId: lead.id_airtable
+          recordId: lead.id_airtable // Optional: if we want send-message to modify history too
         })
       });
       const data = await res.json();

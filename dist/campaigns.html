@@ -55,25 +55,28 @@
                   <input type="number" id="sendLimit" class="form-input" value="100" />
                 </div>
 
-                <div class="form-group" style="padding-top: 15px; border-top: 1px solid var(--border);">
-                  <label class="form-label">Filter by City / Area (Local)</label>
+                <button class="btn btn-warning" style="width:100%" onclick="fetchLeadsFromAirtableWithStatus()">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Load from Airtable
+                </button>
+
+                <div id="fetchStatus" style="font-size: .75rem; color: var(--text-muted); margin-top: 12px; display: none; text-align:center;">
+                  ✓ Found <span id="fetchCount" style="color:var(--green); font-weight:600;">0</span> leads
+                </div>
+             </div>
+
+             <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">2. Local Filter</h3>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Filter by City / Area</label>
                   <div style="position:relative;">
                     <input type="text" id="cityFilterInput" class="form-input" placeholder="e.g. Jakarta, Bandung..." oninput="filterLeadsLocally()">
                     <span style="position:absolute; right:10px; top:10px; color:var(--text-muted); font-size:.7rem;" id="filterResultCount"></span>
                   </div>
-                  <p style="font-size:.65rem; color:var(--text-muted); margin-top:6px; margin-bottom:15px;">Hanya prospek di area ini yang akan dikirimi pesan.</p>
                 </div>
-
-                <button class="btn btn-warning" id="btnLoadAirtable" style="width:100%" onclick="fetchLeadsFromAirtableWithStatus()">
-                  <svg width="18" height="18" id="iconLoadAirtable" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Load from Airtable
-                </button>
-
-                <div id="fetchStatus" style="font-size: .8rem; padding: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--green); border-radius: 6px; color: var(--green); margin-top: 15px; display: none; text-align:center; font-weight: 500;">
-                  ✓ Found <span id="fetchCount" style="font-weight:700;">0</span> leads
-                </div>
-             </div>
-
+                <p style="font-size:.7rem; color:var(--text-muted);">Hanya prospek di area ini yang akan dikirimi pesan.</p>
              </div>
           </div>
 
@@ -82,7 +85,7 @@
              <div class="card">
                 <div class="card-header">
                   <div class="card-title-group">
-                    <h3 class="card-title">2. Create Campaign</h3>
+                    <h3 class="card-title">3. Create Campaign</h3>
                     <span class="step-badge" id="badge-step3">Idle</span>
                   </div>
                 </div>
@@ -106,25 +109,19 @@
 
                 <div class="sending-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:20px;">
                    <div class="form-group">
-                      <label class="form-label">⏱ Random Delay Pengiriman</label>
-                      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
-                          <input type="number" id="delayMin" class="form-input" value="15" min="5" max="600" style="width:80px; text-align:center;" />
-                          <span style="font-size:.65rem; color:var(--text-muted);">Min (detik)</span>
-                        </div>
-                        <span style="color:var(--text-muted); font-weight:600;">—</span>
-                        <div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
-                          <input type="number" id="delayMax" class="form-input" value="45" min="10" max="600" style="width:80px; text-align:center;" />
-                          <span style="font-size:.65rem; color:var(--text-muted);">Max (detik)</span>
-                        </div>
+                      <label class="form-label">Delay (Seconds)</label>
+                      <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="number" id="delayMin" class="form-input" value="15" />
+                        <span>to</span>
+                        <input type="number" id="delayMax" class="form-input" value="30" />
                       </div>
-                      <p style="font-size:.65rem; color:var(--text-muted); margin-top:6px;">Jeda acak antara setiap pesan (anti-ban).</p>
                    </div>
                    <div class="form-group" style="display:flex; align-items:flex-end;">
                       <button class="btn btn-wa" id="startWaBtn" style="width:100%" onclick="startWhatsApp()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         Start Campaign
                       </button>
+                      
                       <div id="activeControls" style="display:none; gap:10px; width:100%;">
                         <button class="btn btn-warning" id="pauseWaBtn" onclick="pauseWhatsApp()" style="flex:1;">Pause</button>
                         <button class="btn btn-error" id="stopWaBtn" onclick="stopWhatsApp()" style="flex:1;">Stop</button>
@@ -132,8 +129,7 @@
                    </div>
                 </div>
 
-                <!-- waProgress alias so app.js getElementById('waProgress') works -->
-                <div id="waProgress" class="progress-box" style="display:none; margin-top:20px;">
+                <div id="waProgressBox" class="progress-box" style="display:none; margin-top:20px;">
                   <div class="progress-header">
                     <span class="progress-label" id="waProgressLabel">Ready to send...</span>
                     <span class="progress-pct" id="waCount">0 / 0</span>
@@ -141,7 +137,7 @@
                   <div class="progress-bar-container">
                     <div id="waBar" class="progress-bar progress-bar--wa" style="width: 0%"></div>
                   </div>
-                  <div id="waNextSend" style="font-size: .7rem; color: var(--text-muted); margin-top: 8px; display:none;">Next send in: <span id="waCountdown" style="color:var(--indigo-bright); font-weight:600;">—</span></div>
+                  <div id="waNextSend" style="font-size: .7rem; color: var(--text-muted); margin-top: 8px;">Next send in: <span id="waCountdown" style="color:var(--indigo-bright); font-weight:600;">—</span></div>
                 </div>
              </div>
 

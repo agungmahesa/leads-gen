@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Lead Gen Control Panel</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --input-bg: #0f172a;
+      --border: #334155;
+    }
+    body {
+      margin: 0; padding: 0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-container {
+      background: var(--card-bg);
+      padding: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 320px;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+    }
+    .login-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      color: #94a3b8;
+    }
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+    .error-msg {
+      color: #ef4444;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2 class="login-title">Team Login</h2>
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" id="username" class="form-input" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn">Log In</button>
+      <div id="errorMsg" class="error-msg">Invalid credentials</div>
+    </form>
+  </div>
+
+  <script>
+    // If already logged in, go straight to index.html
+    if (localStorage.getItem('appToken')) {
+      window.location.href = '/index.html';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const backendUrl = 'https://leads-gen-production-461b.up.railway.app';
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      const err = document.getElementById('errorMsg');
+      err.style.display = 'none';
+
+      try {
+        const res = await fetch(`${backendUrl}/api/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: u, password: p})
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.token) {
+          localStorage.setItem('appToken', data.token);
+          window.location.href = '/index.html';
+        } else {
+          err.textContent = data.error || 'Login failed';
+          err.style.display = 'block';
+        }
+      } catch (error) {
+        err.textContent = 'Server error. Is it running?';
+        err.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
