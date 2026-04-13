@@ -185,23 +185,41 @@ function initWhatsAppSocket() {
 }
 
 function updateWaConnectionUI(status) {
+  // Support both old element IDs (index.html WA hub) and new dedicated WA page IDs
   const badge = document.getElementById('waConnBadge');
-  const qrContainer = document.getElementById('waQrContainer');
+  const statusEl = document.getElementById('waConnectionStatus'); // index.html
+  const qrContainer = document.getElementById('waQrContainer') || document.getElementById('qrCodeContainer');
   const connectedInfo = document.getElementById('waConnectedInfo');
   const loadingInfo = document.getElementById('waLoadingInfo');
+  const qrImg = document.getElementById('qrCode');
 
-  if (!badge) return;
+  const statusMap = {
+    connected:     { label: '✓ Connected',     color: 'var(--green)', bg: 'rgba(16,185,129,.1)' },
+    waiting_scan:  { label: '📷 Scan QR Code', color: 'var(--yellow)', bg: 'rgba(251,191,36,.1)' },
+    disconnected:  { label: '✗ Disconnected',  color: 'var(--red)',   bg: 'rgba(239,68,68,.1)' },
+  };
+  const s = statusMap[status] || statusMap['disconnected'];
 
-  badge.className = `conn-status-badge status-${status.replace('_', '-')}`;
-  badge.textContent = status.replace('_', ' ').toUpperCase();
+  if (badge) {
+    badge.className = `conn-status-badge status-${status.replace('_', '-')}`;
+    badge.textContent = status.replace('_', ' ').toUpperCase();
+  }
+  // Also update index.html's waConnectionStatus pill
+  if (statusEl) {
+    statusEl.innerHTML = `<span class="status-dot" style="background:${s.color};"></span>${s.label}`;
+    statusEl.style.background = s.bg;
+    statusEl.style.color = s.color;
+    statusEl.style.border = `1px solid ${s.color.replace(')', ',.3)')}4d`;
+  }
 
   if (qrContainer) qrContainer.style.display = (status === 'waiting_scan') ? 'block' : 'none';
   if (connectedInfo) connectedInfo.style.display = (status === 'connected') ? 'block' : 'none';
   if (loadingInfo) loadingInfo.style.display = (status === 'disconnected') ? 'block' : 'none';
 
-  if (status === 'connected') {
-    addLog('✓ WhatsApp Backend: Connected', 'ok');
-  }
+  // Also update index.html QR image
+  if (status === 'waiting_scan' && qrImg) qrImg.style.display = 'block';
+
+  if (status === 'connected') addLog('✓ WhatsApp Backend: Connected', 'ok');
 }
 
 // ─── Backend Heartbeat (One-Click Support) ────────
@@ -435,8 +453,8 @@ function processUploadedFile(file) {
   const statusText = document.getElementById('uploadStatusText');
   const dropText = document.getElementById('uploadDropText');
   
-  statusEl.style.display = 'flex';
-  statusText.textContent = `Memproses "${file.name}"…`;
+  if (statusEl) statusEl.style.display = 'flex';
+  if (statusText) statusText.textContent = `Memproses "${file.name}"…`;
   
   if (ext === 'csv') {
     const reader = new FileReader();
@@ -445,25 +463,34 @@ function processUploadedFile(file) {
         const leads = parseOutscraperCSV(e.target.result);
         applyUploadedLeads(leads, file.name, statusText, dropText);
       } catch(err) {
-        statusText.textContent = `Error: ${err.message}`;
+        if (statusText) statusText.textContent = `Error: ${err.message}`;
         addLog(`Upload error: ${err.message}`, 'error');
+        showToast(`❌ Upload error: ${err.message}`, true);
       }
     };
     reader.readAsText(file, 'UTF-8');
   } else if (ext === 'xlsx' || ext === 'xls') {
+    if (typeof XLSX === 'undefined') {
+      if (statusText) statusText.textContent = 'Library XLSX belum dimuat. Tunggu sebentar dan coba lagi.';
+      addLog('XLSX library not loaded yet. Retrying...', 'warn');
+      // Retry after 2 seconds if SheetJS hasn't loaded yet
+      setTimeout(() => processUploadedFile(file), 2000);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const leads = parseOutscraperXLSX(e.target.result);
         applyUploadedLeads(leads, file.name, statusText, dropText);
       } catch(err) {
-        statusText.textContent = `Error parsing Excel: ${err.message}`;
+        if (statusText) statusText.textContent = `Error parsing Excel: ${err.message}`;
         addLog(`Upload XLSX error: ${err.message}`, 'error');
+        showToast(`❌ XLSX error: ${err.message}`, true);
       }
     };
     reader.readAsArrayBuffer(file);
   } else {
-    statusText.textContent = 'Format tidak didukung. Gunakan .csv atau .xlsx';
+    if (statusText) statusText.textContent = 'Format tidak didukung. Gunakan .csv atau .xlsx';
     addLog('Unsupported file format.', 'error');
   }
 }
@@ -703,10 +730,15 @@ function clearAll() {
 
 // ─── Step Badge ───────────────────────────────────
 function setStepBadge(step, text, state = '') {
-  const badge = document.getElementById(`${step}StatusBadge`);
+  // Support both ID formats: 'badge-step1' (new pages) and 'step1StatusBadge' (old)
+  const badge = document.getElementById(`badge-${step}`) || document.getElementById(`${step}StatusBadge`);
+  if (!badge) return;
   badge.textContent = text;
-  badge.className = 'step-status-badge';
-  if (state) badge.classList.add(state);
+  badge.className = 'step-badge';
+  if (state === 'running') badge.style.cssText = 'background:rgba(251,191,36,.15); color:#fbbf24; border-color:rgba(251,191,36,.3);';
+  else if (state === 'success') badge.style.cssText = 'background:rgba(16,185,129,.15); color:#10b981; border-color:rgba(16,185,129,.3);';
+  else if (state === 'error') badge.style.cssText = 'background:rgba(239,68,68,.15); color:#ef4444; border-color:rgba(239,68,68,.3);';
+  else badge.style.cssText = '';
 }
 
 // ─── Advanced Toggle ──────────────────────────────
