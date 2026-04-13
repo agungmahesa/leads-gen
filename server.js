@@ -392,6 +392,31 @@ app.get("/status", (req, res) => {
     res.json({ status: connectionStatus, qr: qrCodeData });
 });
 
+// REST fallbacks for WA actions (used when WebSocket is unavailable)
+app.post('/api/logout-wa', verifyToken, async (req, res) => {
+    try {
+        if (socket) {
+            await socket.logout();
+            if (fs.existsSync(AUTH_PATH)) fs.rmSync(AUTH_PATH, { recursive: true, force: true });
+        }
+        connectionStatus = 'disconnected';
+        io.emit('status', 'disconnected');
+        connectToWhatsApp();
+        res.json({ success: true, message: 'Logged out. Scan QR to reconnect.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/reconnect-wa', verifyToken, (req, res) => {
+    try {
+        if (connectionStatus === 'disconnected') connectToWhatsApp();
+        res.json({ success: true, message: 'Reconnect triggered.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Socket.io Logic ──────────────────────────────
 
 io.on("connection", (client) => {

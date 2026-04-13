@@ -275,10 +275,31 @@ function showWaQrCode(qrBase64) {
 }
 
 function logoutWhatsApp() {
-  if (socketIo) {
-    if (confirm('Logout dari WhatsApp? Sesi akan dihapus.')) {
-      socketIo.emit('logout');
-    }
+  if (!confirm('Logout dari WhatsApp? Sesi akan dihapus dan QR baru akan muncul.')) return;
+  // Try socket emit first
+  if (socketIo && socketIo.connected) {
+    socketIo.emit('logout');
+    showToast('Logging out WhatsApp...');
+  } else {
+    // Fallback: REST API
+    fetch(`${backendUrl}/api/logout-wa`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${APP_TOKEN}` }
+    }).then(r => r.json()).then(d => {
+      showToast(d.message || 'Logout berhasil!');
+    }).catch(e => showToast('Error: ' + e.message, true));
+  }
+}
+
+function reconnectWhatsApp() {
+  if (socketIo && socketIo.connected) {
+    socketIo.emit('reconnect-wa');
+    showToast('Reconnecting WhatsApp...');
+  } else {
+    fetch(`${backendUrl}/api/reconnect-wa`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${APP_TOKEN}` }
+    }).then(() => showToast('Reconnect triggered!')).catch(e => showToast('Error: ' + e.message, true));
   }
 }
 
@@ -929,23 +950,26 @@ function exportCSV() {
 // ════════════════════════════════════════════════
 function populateLeadTable() {
   const wrap = document.getElementById('leadTableWrap');
+  if (!wrap) return; // Not on a page with this table
   wrap.innerHTML = '';
+  if (!STATE.scrapedLeads.length) return;
   STATE.scrapedLeads.forEach((lead, idx) => {
     const div = document.createElement('div');
     div.className = 'lead-table-item';
     div.id = `lead-row-${idx}`;
     div.onclick = () => toggleLeadSelect(idx, div);
+    const addr = (lead.address || '-').substring(0, 20);
     div.innerHTML = `
       <label class="checkbox-label" onclick="event.stopPropagation()">
         <input type="checkbox" id="lead-chk-${idx}" ${STATE.selectedLeads.includes(idx) ? 'checked' : ''} onchange="toggleLeadSelect(${idx}, document.getElementById('lead-row-${idx}'))" />
         <span class="checkbox-custom"></span>
       </label>
       <div class="lead-item-info">
-        <div class="lead-item-name">${escHtml(lead.name)}</div>
-        <div class="lead-item-phone">${escHtml(lead.phone)}</div>
+        <div class="lead-item-name">${escHtml(lead.name || '')}</div>
+        <div class="lead-item-phone">${escHtml(lead.phone || '')}</div>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <span class="result-meta-chip" style="font-size:.68rem;color:var(--text-muted)">${escHtml(lead.address.substring(0,20))}…</span>
+        <span class="result-meta-chip" style="font-size:.68rem;color:var(--text-muted)">${escHtml(addr)}…</span>
         <button class="btn-item-delete" onclick="deleteLead(${idx}, event)" title="Delete">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
@@ -991,7 +1015,7 @@ function toggleSelectAll() {
 }
 
 function updateSelectionCount() {
-  document.getElementById('selectionCount').textContent = `${STATE.selectedLeads.length} selected`;
+  safeSetText('selectionCount', `${STATE.selectedLeads.length} selected`);
 }
 
 function deleteLead(idx, event) {
