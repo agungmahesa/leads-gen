@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Live - LeadGen Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .chat-layout { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 65px); overflow: hidden; }
+    .chat-list { border-right: 1px solid var(--border); overflow-y: auto; background: var(--bg-surface); }
+    .chat-list-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: .9rem; display: flex; align-items: center; justify-content: space-between; }
+    .chat-item { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; transition: var(--transition); }
+    .chat-item:hover { background: rgba(255,255,255,.03); }
+    .chat-item.active { background: var(--indigo-glow); border-left: 3px solid var(--indigo); }
+    .chat-item-name { font-weight: 600; font-size: .9rem; margin-bottom: 4px; }
+    .chat-item-preview { font-size: .75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-item-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .chat-item-time { font-size: .65rem; color: var(--text-muted); }
+    .chat-window { display: flex; flex-direction: column; }
+    .chat-header { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg-surface); display: flex; align-items: center; gap: 12px; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+    .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: .9rem; line-height: 1.5; }
+    .msg-bubble.outgoing { background: var(--indigo-glow); border: 1px solid var(--border-bright); align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg-bubble.incoming { background: var(--bg-elevated); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg-time { font-size: .65rem; color: var(--text-muted); margin-top: 4px; text-align: right; }
+    .chat-input-bar { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-surface); display: flex; gap: 12px; align-items: center; }
+    .ai-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--purple-dim); border: 1px solid rgba(168,85,247,.3); border-radius: 99px; font-size: .65rem; color: var(--purple); font-weight: 600; }
+    .ai-active-indicator { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar injected by navbar.js -->
+
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <h2 style="margin:0; font-size:1.2rem;">Chat Live</h2>
+          <span style="color:var(--text-muted); font-size:.8rem; margin-left:12px;">WhatsApp inbox & AI monitoring</span>
+        </div>
+        <div class="top-bar-right">
+          <div class="ai-active-indicator" id="aiActiveIndicator" style="display:none;">
+            <span class="status-dot active"></span>
+            AI Auto-Reply: ON
+          </div>
+          <div id="backendStatusPill" class="status-pill status-pill--secondary">
+            <span class="status-dot status-dot--error" id="backendStatusDot"></span>
+            <span id="backendStatusText" style="font-size: .7rem;">Backend: Offline</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="chat-layout">
+        <!-- CHAT LIST PANEL -->
+        <div class="chat-list">
+          <div class="chat-list-header">
+            <span>Conversations (<span id="chatCount">0</span>)</span>
+            <button class="btn-sm btn-ghost" onclick="loadChats()">↻ Refresh</button>
+          </div>
+          <div id="chatListBody">
+            <div style="padding:40px; text-align:center; color:var(--text-muted); font-size:.85rem;">
+              Loading conversations...
+            </div>
+          </div>
+        </div>
+
+        <!-- CHAT WINDOW -->
+        <div class="chat-window">
+          <div class="chat-header" id="chatHeader">
+            <div id="chatHeaderInfo" style="flex:1;">
+              <div style="font-weight:600; font-size:1rem;">Select a conversation</div>
+              <div style="font-size:.75rem; color:var(--text-muted);">Choose from the list on the left</div>
+            </div>
+          </div>
+
+          <div class="chat-messages" id="chatMessages">
+            <div style="margin:auto; text-align:center; color:var(--text-muted);" id="noConvMsg">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3; margin-bottom:12px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              <p>Pilih percakapan untuk melihat isi chat</p>
+            </div>
+          </div>
+
+          <div class="chat-input-bar" id="chatInputBar">
+            <input type="text" id="manualReplyInput" class="form-input" placeholder="Override: ketik pesan manual..." style="flex:1;" />
+            <button class="btn btn-primary" onclick="sendManualReply()">Send Override</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="navbar.js"></script>
+  <script>
+    const APP_TOKEN = localStorage.getItem('appToken');
+    const backendUrl = 'http://localhost:3001';
+    if (!APP_TOKEN) window.location.href = '/login.html';
+
+    let activeChatId = null;
+    let chats = [];
+
+    function showToast(msg, err=false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = err ? 'var(--red)' : 'var(--green)';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    async function loadChats() {
+      try {
+        const res = await fetch(`${backendUrl}/api/chats`, {
+          headers: { 'Authorization': `Bearer ${APP_TOKEN}` }
+        });
+        if (res.status === 401 || res.status === 403) { window.location.href = '/login.html'; return; }
+        const data = await res.json();
+        chats = Array.isArray(data) ? data : (data.chats || []);
+      } catch (e) {
+        chats = [];
+        console.warn('Could not load chats:', e.message);
+      }
+      renderChatList();
+    }
+
+    function renderChatList() {
+      const body = document.getElementById('chatListBody');
+      document.getElementById('chatCount').textContent = chats.length;
+
+      if (!chats.length) {
+        body.innerHTML = `<div style="padding:40px; text-align:center; color:var(--text-muted); font-size:.85rem;">Belum ada percakapan.</div>`;
+        return;
+      }
+
+      body.innerHTML = chats.map(c => {
+        const msgs = c.messages || [];
+        const last = msgs[msgs.length - 1]?.text || '...';
+        const time = msgs[msgs.length - 1]?.timestamp
+          ? new Date(msgs[msgs.length - 1].timestamp).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+          : '';
+        const isAI = c.aiActive;
+        return `
+          <div class="chat-item ${activeChatId === c.id ? 'active' : ''}" onclick="openChat('${c.id}')">
+            <div class="chat-item-meta">
+              <span class="chat-item-name">${c.name || c.phone || 'Unknown'}</span>
+              <span class="chat-item-time">${time}</span>
+            </div>
+            <div class="chat-item-preview">${last}</div>
+            ${isAI ? '<span class="ai-badge" style="margin-top:4px;">🤖 AI Active</span>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openChat(id) {
+      activeChatId = id;
+      const chat = chats.find(c => c.id === id);
+      if (!chat) return;
+
+      renderChatList(); // refresh active state
+
+      const headerInfo = document.getElementById('chatHeaderInfo');
+      headerInfo.innerHTML = `
+        <div style="font-weight:600; font-size:1rem;">${chat.name || chat.phone}</div>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:4px;">
+          <span style="font-size:.75rem; color:var(--text-muted);">${chat.phone || ''}</span>
+          ${chat.aiActive ? '<span class="ai-badge">🤖 AI Aktif</span>' : '<span style="font-size:.75rem; color:var(--text-muted);">Manual mode</span>'}
+        </div>
+      `;
+
+      const msgs = document.getElementById('chatMessages');
+      const noConv = document.getElementById('noConvMsg');
+      if (noConv) noConv.style.display = 'none';
+
+      const messages = chat.messages || [];
+      if (!messages.length) {
+        msgs.innerHTML = '<div style="margin:auto; color:var(--text-muted); font-size:.85rem;">Belum ada pesan.</div>';
+        return;
+      }
+
+      msgs.innerHTML = messages.map(m => `
+        <div style="display:flex; flex-direction:column; align-items:${m.fromMe ? 'flex-end' : 'flex-start'};">
+          <div class="msg-bubble ${m.fromMe ? 'outgoing' : 'incoming'}">
+            ${m.text || ''}
+            ${m.isAI ? '<span class="ai-badge" style="margin-top:6px; display:inline-flex;">🤖 AI</span>' : ''}
+          </div>
+          <div class="msg-time">${m.timestamp ? new Date(m.timestamp).toLocaleString('id-ID') : ''}</div>
+        </div>
+      `).join('');
+
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    async function sendManualReply() {
+      if (!activeChatId) { showToast('Pilih percakapan dulu!', true); return; }
+      const input = document.getElementById('manualReplyInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const btn = document.querySelector('.chat-input-bar .btn');
+      btn.textContent = '...';
+
+      try {
+        const res = await fetch(`${backendUrl}/api/manual-reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${APP_TOKEN}` },
+          body: JSON.stringify({ recordId: activeChatId, text })
+        });
+        if (res.ok) {
+          input.value = '';
+          showToast('Pesan terkirim!');
+          setTimeout(loadChats, 1000);
+        } else {
+          showToast('Gagal kirim pesan.', true);
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, true);
+      } finally {
+        btn.textContent = 'Send Override';
+      }
+    }
+
+    // Auto-refresh every 15 seconds
+    loadChats();
+    setInterval(loadChats, 15000);
+  </script>
+</body>
+</html>

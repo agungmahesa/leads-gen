@@ -1,0 +1,16 @@
+# Secrets and Config
+.env
+
+# WA Baileys Session storage (Do not publish!)
+auth/
+
+# Node Modules
+node_modules/
+.npm/
+
+# Logs
+backend.log
+*.log
+
+# Mac OS files
+.DS_Store

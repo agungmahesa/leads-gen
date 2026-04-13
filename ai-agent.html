@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Control - Lead Gen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Additional AI Specific Styles */
+    .ai-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+    .ai-sidebar { background: #1e293b; border-right: 1px solid #334155; padding: 20px; }
+    .ai-content { padding: 30px; max-width: 1200px; }
+    
+    .persona-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .prompt-textarea { width: 100%; height: 250px; background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 8px; padding: 15px; font-family: inherit; resize: vertical; line-height: 1.5; font-size: .9rem; margin-top:10px; box-sizing: border-box;}
+    .prompt-textarea:focus { outline: none; border-color: var(--primary); }
+    
+    .status-card { display: flex; align-items: center; justify-content: space-between; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; }
+    
+    .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--green); }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    .nav-links { display:flex; flex-direction: column; gap:10px; margin-top:30px; }
+    .nav-link { display:flex; align-items:center; gap:10px; padding:12px; color:#cbd5e1; text-decoration:none; border-radius:8px; transition:0.2s;}
+    .nav-link:hover { background: #334155; color: #fff;}
+    .nav-link.active { background: var(--primary); color: #fff; font-weight:600;}
+
+    .btn-save { padding: 12px 24px; font-size: 1rem; width: 100%; }
+  </style>
+</head>
+<body>
+  
+  <div class="ai-layout">
+    <!-- Sidebar -->
+    <div class="ai-sidebar">
+      <h2 style="margin: 0 0 5px 0; font-size:1.4rem;">Lead Gen</h2>
+      <p style="color:var(--text-muted); font-size:.8rem; margin:0 0 30px 0;">Control Panel</p>
+      
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Campaign Dashboard
+        </a>
+        <a href="ai-agent.html" class="nav-link active">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><path d="M9 16v-2"/><path d="M15 16v-2"/></svg>
+          AI Sales Agent
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ai-content">
+      <h1 style="margin-bottom: 24px;">AI Auto-Reply Configuration</h1>
+
+      <div class="status-card">
+        <div>
+          <h3 style="margin:0 0 5px 0;">Master Switch (AI Agent)</h3>
+          <p style="margin:0; font-size:.85rem; color:#94a3b8;">Nyalakan untuk membiarkan AI menjawab chat dari database Leads secara otomatis.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="aiMasterSwitch">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="persona-card">
+        <h3 style="margin:0 0 5px 0;">Google Gemini API Key</h3>
+        <p style="margin:0 0 15px 0; font-size:.8rem; color:var(--text-muted);">Masukkan key unik dari Google AI Studio. (Disimpan aman di server)</p>
+        <input type="password" id="geminiKey" class="form-input" style="width:100%; max-width:400px;" placeholder="AIzaSy...">
+      </div>
+
+      <div class="persona-card">
+        <h3 style="margin:0 0 5px 0;">AI Persona & System Prompt</h3>
+        <p style="margin:0; font-size:.8rem; color:var(--text-muted);">Instruksikan bagaimana agen AI harus bersikap, apa pantangannya, dan berikan informasi bisnis Anda selengkap-lengkapnya disini.</p>
+        
+        <textarea id="aiPrompt" class="prompt-textarea" placeholder="Contoh: Anda adalah Sales representative dari Toko XYZ. Jawab dengan ramah menggunakan bahasa Indonesia gaul. Tujuan utama Anda adalah mengajak pelanggan mencoba produk kami..."></textarea>
+      </div>
+
+      <div class="persona-card" style="border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.05);">
+        <h3 style="margin:0 0 5px 0; color:#fbbf24;">Persyaratan Airtable</h3>
+        <p style="margin:0; font-size:.85rem; color:var(--text-muted); line-height: 1.5;">Untuk memori dan kontrol AI, Anda <b>WAJIB MENAMBAHKAN 2 KOLOM BARU</b> pada tabel Leads Anda di Airtable:<br><br>
+        1. Kolom <b><code style="background:#0f172a; padding:2px 6px; border-radius:4px;">Chat_History</code></b> (Tipe: Long text)<br>
+        2. Kolom <b><code style="background:#0f172a; padding:2px 6px; border-radius:4px;">AI_Active</code></b> (Tipe: Checkbox)</p>
+      </div>
+
+      <button id="btnSaveAi" class="btn btn-primary btn-save">Simpan Konfigurasi AI</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const APP_TOKEN = localStorage.getItem('appToken');
+    const backendUrl = 'http://localhost:3001';
+    if (!APP_TOKEN) window.location.href = '/login.html';
+
+    function showToast(msg, isErr=false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isErr ? 'var(--red)' : 'var(--green)';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    async function loadAiConfig() {
+      try {
+        const res = await fetch(`${backendUrl}/api/ai-config`, {
+          headers: { 'Authorization': `Bearer ${APP_TOKEN}` }
+        });
+        const data = await res.json();
+        if(res.ok) {
+          document.getElementById('aiMasterSwitch').checked = data.isActive;
+          document.getElementById('geminiKey').value = data.geminiKey || '';
+          document.getElementById('aiPrompt').value = data.prompt || '';
+        }
+      } catch(e) {}
+    }
+
+    document.getElementById('btnSaveAi').addEventListener('click', async () => {
+      const isActive = document.getElementById('aiMasterSwitch').checked;
+      const geminiKey = document.getElementById('geminiKey').value.trim();
+      const prompt = document.getElementById('aiPrompt').value.trim();
+
+      try {
+        const res = await fetch(`${backendUrl}/api/ai-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${APP_TOKEN}` },
+          body: JSON.stringify({ isActive, geminiKey, prompt })
+        });
+        if(res.ok) {
+          showToast('Konfigurasi AI berhasil disimpan!');
+        } else {
+          showToast('Gagal menyimpan config.', true);
+        }
+      } catch(e) {
+        showToast('Network error', true);
+      }
+    });
+
+    loadAiConfig();
+  </script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campaign Outreach - LeadGen Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar will be injected here by navbar.js -->
+
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <h2 style="margin:0; font-size:1.2rem;">Campaign Outreach</h2>
+          <span style="color:var(--text-muted); font-size:.8rem; margin-left:12px;">WhatsApp Automation Engine</span>
+        </div>
+        <div class="top-bar-right">
+           <div id="backendStatusPill" class="status-pill status-pill--secondary">
+              <span class="status-dot status-dot--error" id="backendStatusDot"></span>
+              <span id="backendStatusText" style="font-size: .7rem;">Backend: Offline</span>
+           </div>
+        </div>
+      </header>
+
+      <div class="view-content" style="padding: 24px;">
+        <div class="campaign-layout" style="display: grid; grid-template-columns: 350px 1fr; gap: 24px;">
+          
+          <!-- Column 1: Config & Filters -->
+          <div class="sidebar-area">
+             <div class="card" style="margin-bottom: 20px;">
+                <div class="card-header">
+                  <h3 class="card-title">1. Fetch Leads</h3>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">Status Filter (Airtable)</label>
+                  <select id="fetchStatusOption" class="form-input">
+                    <option value="New Lead">Status: New Lead</option>
+                    <option value="Ready to Blast">Status: Ready to Blast</option>
+                    <option value="Sent WA">Status: Sent WA</option>
+                    <option value="Failed WA">Status: Failed WA</option>
+                    <option value="">Status: All</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Max Records</label>
+                  <input type="number" id="sendLimit" class="form-input" value="100" />
+                </div>
+
+                <button class="btn btn-warning" style="width:100%" onclick="fetchLeadsFromAirtableWithStatus()">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Load from Airtable
+                </button>
+
+                <div id="fetchStatus" style="font-size: .75rem; color: var(--text-muted); margin-top: 12px; display: none; text-align:center;">
+                  ✓ Found <span id="fetchCount" style="color:var(--green); font-weight:600;">0</span> leads
+                </div>
+             </div>
+
+             <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">2. Local Filter</h3>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Filter by City / Area</label>
+                  <div style="position:relative;">
+                    <input type="text" id="cityFilterInput" class="form-input" placeholder="e.g. Jakarta, Bandung..." oninput="filterLeadsLocally()">
+                    <span style="position:absolute; right:10px; top:10px; color:var(--text-muted); font-size:.7rem;" id="filterResultCount"></span>
+                  </div>
+                </div>
+                <p style="font-size:.7rem; color:var(--text-muted);">Hanya prospek di area ini yang akan dikirimi pesan.</p>
+             </div>
+          </div>
+
+          <!-- Column 2: Message & Send -->
+          <div class="main-area">
+             <div class="card">
+                <div class="card-header">
+                  <div class="card-title-group">
+                    <h3 class="card-title">3. Create Campaign</h3>
+                    <span class="step-badge" id="badge-step3">Idle</span>
+                  </div>
+                </div>
+
+                <div class="form-group" style="background:rgba(251, 191, 36, 0.05); padding:12px; border-radius:8px; border:1px solid rgba(251, 191, 36, 0.2); margin-bottom:15px;">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="useAiIntroCheck" onchange="toggleAiIntro()" />
+                    <span class="checkbox-custom"></span>
+                    <span style="font-weight:600; color:#fbbf24;">✨ Generate Personalized Intro with AI</span>
+                  </label>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" id="msgTemplateLabel">Message Template</label>
+                  <textarea id="msgTemplate" class="form-input" style="height: 150px; font-family:inherit;" placeholder="Halo {{name}}, puji hidangan mereka..."></textarea>
+                  <div style="display:flex; gap:10px; margin-top:8px;">
+                     <button class="btn btn-ghost btn-sm" onclick="insertTag('{{name}}')">{{name}}</button>
+                     <button class="btn btn-ghost btn-sm" onclick="insertTag('{{business}}')">{{business}}</button>
+                  </div>
+                </div>
+
+                <div class="sending-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:20px;">
+                   <div class="form-group">
+                      <label class="form-label">Delay (Seconds)</label>
+                      <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="number" id="delayMin" class="form-input" value="15" />
+                        <span>to</span>
+                        <input type="number" id="delayMax" class="form-input" value="30" />
+                      </div>
+                   </div>
+                   <div class="form-group" style="display:flex; align-items:flex-end;">
+                      <button class="btn btn-wa" id="startWaBtn" style="width:100%" onclick="startWhatsApp()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        Start Campaign
+                      </button>
+                      
+                      <div id="activeControls" style="display:none; gap:10px; width:100%;">
+                        <button class="btn btn-warning" id="pauseWaBtn" onclick="pauseWhatsApp()" style="flex:1;">Pause</button>
+                        <button class="btn btn-error" id="stopWaBtn" onclick="stopWhatsApp()" style="flex:1;">Stop</button>
+                      </div>
+                   </div>
+                </div>
+
+                <div id="waProgressBox" class="progress-box" style="display:none; margin-top:20px;">
+                  <div class="progress-header">
+                    <span class="progress-label" id="waProgressLabel">Ready to send...</span>
+                    <span class="progress-pct" id="waCount">0 / 0</span>
+                  </div>
+                  <div class="progress-bar-container">
+                    <div id="waBar" class="progress-bar progress-bar--wa" style="width: 0%"></div>
+                  </div>
+                  <div id="waNextSend" style="font-size: .7rem; color: var(--text-muted); margin-top: 8px;">Next send in: <span id="waCountdown" style="color:var(--indigo-bright); font-weight:600;">—</span></div>
+                </div>
+             </div>
+
+             <!-- Preview List -->
+             <div class="card" style="margin-top:20px;">
+                <h3 class="card-title" style="margin-bottom:15px;">Target Leads Preview</h3>
+                <div class="table-container" style="max-height: 400px; overflow-y:auto; font-size:.85rem;">
+                  <table id="targetLeadsTable">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>City</th>
+                        <th>Rating</th>
+                        <th>Phone</th>
+                      </tr>
+                    </thead>
+                    <tbody id="targetLeadsBody">
+                      <tr><td colspan="4" style="text-align:center; padding:40px; color:var(--text-muted);">No leads loaded.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+           <div class="card-header">
+             <h3 class="card-title">Campaign Log</h3>
+             <button class="btn-sm btn-ghost" onclick="clearLog()">Clear</button>
+           </div>
+           <div class="log-body" id="logBody" style="height: 200px; font-size: .8rem;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="navbar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

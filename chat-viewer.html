@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Viewer & Override - Lead Gen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; background: var(--bg); overflow: hidden; }
+    
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-bg); border-bottom: 1px solid var(--border); height: 60px; box-sizing: border-box; }
+    .top-nav-links { display: flex; gap: 15px; }
+    .top-nav-link { color: var(--text-muted); text-decoration: none; font-size: .85rem; font-weight: 500; padding: 6px 12px; border-radius: 6px; transition: .2s; }
+    .top-nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .top-nav-link.active { color: #fff; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); }
+
+    .chat-layout { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 320px; border-right: 1px solid var(--border); background: #1e293b; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 1rem; color: #f8fafc; }
+    .contact-list { overflow-y: auto; flex: 1; }
+    .contact-item { padding: 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .2s; }
+    .contact-item:hover { background: rgba(255,255,255,0.05); }
+    .contact-item.active { background: rgba(59, 130, 246, 0.15); border-left: 3px solid var(--primary); }
+    .contact-name { font-weight: 600; font-size: .9rem; margin-bottom: 4px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contact-preview { font-size: .75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contact-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: .65rem; background: var(--green-dim); color: var(--green); margin-top:5px;}
+    .contact-badge.override { background: var(--red-dim); color: var(--red); }
+
+    .main-chat { flex: 1; display: flex; flex-direction: column; background: #0f172a; position: relative; }
+    .chat-header { padding: 15px 20px; border-bottom: 1px solid var(--border); background: #1e293b; display: flex; justify-content: space-between; align-items: center; height: 65px; box-sizing: border-box; }
+    .chat-header-info { display: flex; flex-direction: column; }
+    .chat-header-name { font-weight: 600; font-size: 1rem; color: #fff; }
+    .chat-header-phone { font-size: .75rem; color: #94a3b8; }
+    .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .message { max-width: 65%; padding: 10px 14px; border-radius: 12px; font-size: .9rem; line-height: 1.4; position: relative; word-wrap: break-word;}
+    
+    /* System / Old template */
+    .msg-system { background: #334155; color: #fff; align-self: center; font-size: .8rem; padding: 6px 12px; max-width: 80%; border-radius: 20px;}
+    /* Human / Customer */
+    .msg-in { background: #1e293b; color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 2px; border:1px solid #334155;}
+    /* AI / Owner */
+    .msg-out { background: #064e3b; border: 1px solid #047857; color: #e2e8f0; align-self: flex-end; border-bottom-right-radius: 2px;}
+
+    .msg-label { font-size: .65rem; color: #94a3b8; margin-bottom: 4px; font-weight:600;}
+    .msg-out .msg-label { color: #a7f3d0; text-align:right; }
+
+    .chat-input-area { padding: 15px 20px; background: #1e293b; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end;}
+    .chat-textarea { flex: 1; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; padding: 12px; font-family: inherit; font-size: .95rem; resize: none; min-height: 20px; max-height: 120px;}
+    .chat-textarea:focus { outline: none; border-color: var(--primary); }
+    .btn-send { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 12px 20px; font-weight: 600; cursor: pointer; transition: .2s; }
+    .btn-send:hover { background: #2563eb; }
+    
+    #emptyState { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; color: #64748b; z-index: 10; }
+  </style>
+</head>
+<body>
+
+  <!-- Global Nav -->
+  <header class="top-nav">
+    <div style="font-weight: 700; color: #fff; display: flex; align-items:center; gap:8px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      Chat / Override
+    </div>
+    <div class="top-nav-links">
+      <a href="index.html" class="top-nav-link">Campaign Setup</a>
+      <a href="ai-agent.html" class="top-nav-link">AI Config</a>
+      <a href="chat-viewer.html" class="top-nav-link active">Chat Viewer</a>
+    </div>
+  </header>
+
+  <div class="chat-layout">
+    
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">Active Conversations</div>
+      <div class="contact-list" id="contactList">
+        <div style="text-align:center; padding:20px; color:#64748b; font-size:.85rem;">Loading chats...</div>
+      </div>
+    </div>
+
+    <!-- Main Chat -->
+    <div class="main-chat">
+      <div id="emptyState">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <p style="margin-top:15px; font-size:.9rem;">Select a conversation to view or override.</p>
+      </div>
+
+      <div class="chat-header" id="chatHeader" style="visibility: hidden;">
+        <div class="chat-header-info">
+          <span class="chat-header-name" id="chName">Customer Name</span>
+          <span class="chat-header-phone" id="chPhone">+628...</span>
+        </div>
+        <div id="chStatusBadge"></div>
+      </div>
+
+      <div class="chat-area" id="chatArea"></div>
+
+      <div class="chat-input-area" id="chatInputArea" style="visibility: hidden;">
+        <textarea class="chat-textarea" id="chatTextarea" placeholder="Ketik pesan manual... (Mengirim pesan akan otomatis me-nonaktifkan AI untuk prospek ini)"></textarea>
+        <button class="btn-send" id="btnSend">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const APP_TOKEN = localStorage.getItem('appToken');
+    const backendUrl = 'http://localhost:3001';
+    if (!APP_TOKEN) window.location.href = '/login.html';
+
+    let chats = [];
+    let activeChatId = null;
+
+    function showToast(msg, isErr=false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isErr ? 'var(--red)' : 'var(--green)';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    async function loadChats() {
+      try {
+        const res = await fetch(`${backendUrl}/api/chats`, { headers: { 'Authorization': `Bearer ${APP_TOKEN}` } });
+        if(res.status === 401 || res.status === 403) window.location.href = '/login.html';
+        const data = await res.json();
+        
+        // Sort by id descending so newest is likely first, or if we had timestamp we'd use that.
+        chats = data.chats || [];
+        renderContactList();
+      } catch(e) {
+        document.getElementById('contactList').innerHTML = `<div style="text-align:center; padding:20px; color:#ef4444; font-size:.85rem;">Failed to load</div>`;
+      }
+    }
+
+    function renderContactList() {
+      const list = document.getElementById('contactList');
+      list.innerHTML = '';
+      if(chats.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding:20px; color:#64748b; font-size:.85rem;">No active AI conversations</div>`;
+        return;
+      }
+
+      chats.forEach(chat => {
+        const div = document.createElement('div');
+        div.className = `contact-item ${activeChatId === chat.id ? 'active' : ''}`;
+        div.onclick = () => selectChat(chat.id);
+        
+        const preview = chat.history.substring(0, 40).replace(/\n/g, ' ') + '...';
+        const aiStatus = (chat.aiActive === false) ? '<span class="contact-badge override">Manual Override</span>' : '<span class="contact-badge">AI Active</span>';
+
+        div.innerHTML = `
+          <div class="contact-name">${chat.name || 'Unknown'} (${chat.phone})</div>
+          <div class="contact-preview">${preview}</div>
+          ${aiStatus}
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function parseChatHistory(text) {
+      // Split primarily by "Customer:" and "AI:" and "Human:"
+      // We will do a generic split by \n
+      const lines = text.split('\n');
+      const messages = [];
+      let currentRole = 'system';
+      let currentText = [];
+
+      lines.forEach(line => {
+        if(line.startsWith('Customer:')) {
+          if(currentText.length) messages.push({role: currentRole, text: currentText.join('\n')});
+          currentRole = 'in';
+          currentText = [line.substring(9).trim()];
+        } else if(line.startsWith('AI:')) {
+          if(currentText.length) messages.push({role: currentRole, text: currentText.join('\n')});
+          currentRole = 'out-ai';
+          currentText = [line.substring(3).trim()];
+        } else if(line.startsWith('Human:')) {
+          if(currentText.length) messages.push({role: currentRole, text: currentText.join('\n')});
+          currentRole = 'out-human';
+          currentText = [line.substring(6).trim()];
+        } else {
+          currentText.push(line); // multiline message
+        }
+      });
+      if(currentText.length && currentText.join('').trim() !== '') {
+        messages.push({role: currentRole, text: currentText.join('\n')});
+      }
+      return messages;
+    }
+
+    function selectChat(id) {
+      activeChatId = id;
+      renderContactList();
+
+      const chat = chats.find(c => c.id === id);
+      if(!chat) return;
+
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('chatHeader').style.visibility = 'visible';
+      document.getElementById('chatInputArea').style.visibility = 'visible';
+
+      document.getElementById('chName').textContent = chat.name || 'Unknown Lead';
+      document.getElementById('chPhone').textContent = chat.phone || '';
+      
+      const badge = document.getElementById('chStatusBadge');
+      if(chat.aiActive === false) {
+        badge.innerHTML = '<span class="contact-badge override">Manual Override</span>';
+      } else {
+        badge.innerHTML = '<span class="contact-badge">AI Active</span>';
+      }
+
+      const area = document.getElementById('chatArea');
+      area.innerHTML = '';
+
+      const msgs = parseChatHistory(chat.history);
+      
+      msgs.forEach(m => {
+        if(!m.text.trim()) return;
+        const msgDiv = document.createElement('div');
+        
+        if (m.role === 'in') {
+          msgDiv.className = 'message msg-in';
+          msgDiv.innerHTML = `<div class="msg-label">Customer</div>${m.text}`;
+        } else if (m.role === 'out-ai') {
+          msgDiv.className = 'message msg-out';
+          msgDiv.innerHTML = `<div class="msg-label">🤖 AI Sales Agent</div>${m.text}`;
+        } else if (m.role === 'out-human') {
+          msgDiv.className = 'message msg-out';
+          msgDiv.style.background = '#1e3a8a';
+          msgDiv.style.borderColor = '#1e40af';
+          msgDiv.innerHTML = `<div class="msg-label">👨‍💻 Human (Manual)</div>${m.text}`;
+        } else {
+          msgDiv.className = 'message msg-system';
+          msgDiv.textContent = m.text;
+        }
+
+        area.appendChild(msgDiv);
+      });
+      
+      area.scrollTop = area.scrollHeight;
+    }
+
+    document.getElementById('btnSend').addEventListener('click', async () => {
+      const text = document.getElementById('chatTextarea').value.trim();
+      if(!text || !activeChatId) return;
+      
+      const btn = document.getElementById('btnSend');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const res = await fetch(`${backendUrl}/api/manual-reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${APP_TOKEN}` },
+          body: JSON.stringify({ recordId: activeChatId, text: text })
+        });
+        if(res.ok) {
+          document.getElementById('chatTextarea').value = '';
+          await loadChats();
+          selectChat(activeChatId);
+        } else {
+          showToast('Gagal mengirim pesan', true);
+        }
+      } catch(e) {
+        showToast('Error network', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send';
+      }
+    });
+
+    setInterval(loadChats, 10000); // Polling every 10s
+    loadChats();
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overview Dashboard - LeadGen Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar will be injected here by navbar.js -->
+
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <h2 style="margin:0; font-size:1.2rem;">Pipeline Overview</h2>
+          <span style="color:var(--text-muted); font-size:.8rem; margin-left:12px;">Real-time status and command center</span>
+        </div>
+        <div class="top-bar-right">
+           <div class="status-pill" id="globalStatusPill">
+             <span class="status-dot" id="globalStatusDot"></span>
+             <span id="globalStatusLabel">Idle</span>
+           </div>
+           <div id="backendStatusPill" class="status-pill status-pill--secondary">
+              <span class="status-dot status-dot--error" id="backendStatusDot"></span>
+              <span id="backendStatusText" style="font-size: .7rem;">Backend: Offline</span>
+           </div>
+        </div>
+      </header>
+
+      <div class="view-content" style="padding: 24px;">
+        
+        <!-- Stats Row -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px;">
+           <div class="card stat-card">
+              <div class="stat-label">Total Leads Found</div>
+              <div class="stat-value" id="monitorLeads">0</div>
+              <div class="stat-meta">Across all scrapers</div>
+           </div>
+           <div class="card stat-card">
+              <div class="stat-label">Airtable Synced</div>
+              <div class="stat-value" id="monitorSynced" style="color:var(--cyan)">0</div>
+              <div class="stat-meta">Ready in database</div>
+           </div>
+           <div class="card stat-card">
+              <div class="stat-label">Outreach Sent</div>
+              <div class="stat-value" id="monitorSent" style="color:var(--wa-green)">0</div>
+              <div class="stat-meta">Messages delivered</div>
+           </div>
+           <div class="card stat-card">
+              <div class="stat-label">Reply Rate</div>
+              <div class="stat-value" id="monitorReplies" style="color:var(--yellow)">0%</div>
+              <div class="stat-meta">Lead engagement</div>
+           </div>
+        </div>
+
+        <div class="dashboard-main-grid" style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
+           
+           <!-- Activity Feed -->
+           <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Live Pipeline Activity</h3>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn-sm btn-ghost" onclick="clearLog()">Clear</button>
+                </div>
+              </div>
+              <div class="log-body" id="logBody" style="height: 400px; font-family: 'JetBrains Mono', monospace; font-size: .85rem;">
+                <div class="log-entry log-info">System initialized. Dashboard ready.</div>
+              </div>
+           </div>
+
+           <!-- Sidebar Info -->
+           <div class="dashboard-side">
+              <div class="card" style="margin-bottom: 24px;">
+                <h3 class="card-title" style="margin-bottom:12px;">Quick Tasks</h3>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                   <a href="pipeline.html" class="btn btn-ghost" style="justify-content:flex-start;">
+                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                     Run New Scrape
+                   </a>
+                   <a href="campaigns.html" class="btn btn-ghost" style="justify-content:flex-start;">
+                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                     Launch Campaign
+                   </a>
+                </div>
+              </div>
+
+              <div class="card">
+                <h3 class="card-title" style="margin-bottom:12px;">WhatsApp Hub</h3>
+                <div id="waConnectionStatus" class="status-pill" style="margin-bottom:15px; width:100%; justify-content:center;">Disconnected</div>
+                <div id="qrCodeContainer" style="display:none; text-align:center; background:#fff; padding:10px; border-radius:8px;">
+                  <img id="qrCode" style="width:100%; border-radius:4px;" />
+                  <p style="color:#000; font-size:.7rem; margin-top:5px; font-weight:600;">Scan with WhatsApp</p>
+                </div>
+                <div id="waConnectedInfo" style="display:none; text-align:center;">
+                  <div style="background:var(--wa-green-dim); color:var(--wa-green); padding:10px; border-radius:8px; font-weight:600; font-size:.9rem;">✓ Connected</div>
+                </div>
+              </div>
+           </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="navbar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
