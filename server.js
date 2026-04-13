@@ -29,6 +29,16 @@ const io = new Server(server, {
 
 app.use(express.json());
 
+// ─── Enable CORS for Frontend Fetch Requests ──────
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(200);
+    }
+    next();
+});
 // ─── Authentication Middleware ────────────────────
 const verifyToken = (req, res, next) => {
     const bearerHeader = req.headers['authorization'];
