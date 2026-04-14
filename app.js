@@ -1301,8 +1301,10 @@ async function fetchLeadsFromAirtableWithStatus() {
   const statusFieldName = fieldMap.status || 'status';
 
   let filter = '';
+  let formulaStr = '';
   if (targetStatus) {
-    filter = `&filterByFormula=${encodeURIComponent(`{${statusFieldName}} = '${targetStatus}'`)}`;
+    formulaStr = `{${statusFieldName}} = '${targetStatus}'`;
+    filter = formulaStr;
   }
 
   const limit = safeGet('sendLimit')?.value || 100;
@@ -1322,7 +1324,7 @@ async function fetchLeadsFromAirtableWithStatus() {
       headers: { 'Authorization': `Bearer ${APP_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         apiKey, baseId, tableName,
-        filterByFormula: filter ? formula : '',
+        filterByFormula: formulaStr,
         limit
       })
     });
