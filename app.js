@@ -313,7 +313,7 @@ function startBackendHeartbeat() {
                 if (text) text.textContent = 'Backend: Online';
                 
                 // Fallback: Sync connection status and QR from backend
-                if (data.status) updateConnectionStatus(data.status);
+                if (data.status) updateWaConnectionUI(data.status);
                 if (data.qr) {
                     const qrImg = document.getElementById('qrCode');
                     if (qrImg) qrImg.src = data.qr;
@@ -322,6 +322,7 @@ function startBackendHeartbeat() {
                 throw new Error();
             }
         } catch (e) {
+            console.error("Heartbeat error:", e);
             if (dot) dot.className = 'status-dot status-dot--error';
             if (text) text.textContent = 'Backend: Offline';
         }
