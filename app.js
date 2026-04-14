@@ -1426,20 +1426,26 @@ async function startWhatsApp() {
   STATE.waAbort = false;
   STATE.waSent = 0; STATE.waPending = total; STATE.waFailed = 0; STATE.waReplied = 0;
 
-  document.getElementById('startWaBtn').style.display = 'none';
-  document.getElementById('pauseWaBtn').style.display = 'flex';
-  document.getElementById('stopWaBtn').style.display = 'flex';
-  document.getElementById('waProgress').style.display = 'flex';
-  document.getElementById('waNextSend').style.display = 'flex';
-  document.getElementById('waBar').style.width = '0%';
-  document.getElementById('waCount').textContent = `0 / ${total}`;
+  safeSetStyle('startWaBtn', 'display', 'none');
+  safeSetStyle('pauseWaBtn', 'display', 'flex');
+  safeSetStyle('stopWaBtn', 'display', 'flex');
+  safeSetStyle('activeControls', 'display', 'flex');
+  safeSetStyle('waProgress', 'display', 'flex');
+  safeSetStyle('waNextSend', 'display', 'flex');
+  
+  const waBar = document.getElementById('waBar');
+  if (waBar) waBar.style.width = '0%';
+  safeSetText('waCount', `0 / ${total}`);
 
   setStepBadge('step3', 'Sending…', 'running');
   updateGlobalStatus('WA outreach sending', 'warning');
   addLog(`Starting WA campaign: "${campaign}", ${total} leads (${delayMode} delay)`, 'info');
 
-  const delayMin = parseInt(document.getElementById('delayMin').value) * 1000;
-  const delayMax = parseInt(document.getElementById('delayMax').value) * 1000;
+  // Use safeGet for delay values since index.html might call this without the inputs
+  const delayMinEl = document.getElementById('delayMin');
+  const delayMaxEl = document.getElementById('delayMax');
+  const delayMin = (delayMinEl ? parseInt(delayMinEl.value) : 15) * 1000;
+  const delayMax = (delayMaxEl ? parseInt(delayMaxEl.value) : 30) * 1000;
 
   for (let i = 0; i < total; i++) {
     if (STATE.waAbort) break;
@@ -1466,19 +1472,18 @@ async function startWhatsApp() {
     const countdownInterval = setInterval(() => {
       STATE.waCountdownValue--;
       if (STATE.waCountdownValue <= 0) { clearInterval(countdownInterval); return; }
-      const el = document.getElementById('waCountdown');
-      if (el) el.textContent = `${STATE.waCountdownValue}s`;
+      safeSetText('waCountdown', `${STATE.waCountdownValue}s`);
     }, 1000);
 
-    document.getElementById('waProgressLabel').textContent = `Queueing for ${lead.name || lead.business_name || 'Customer'}…`;
-    document.getElementById('waCountdown').textContent = `${delaySec}s`;
+    safeSetText('waProgressLabel', `Queueing for ${lead.name || lead.business_name || 'Customer'}…`);
+    safeSetText('waCountdown', `${delaySec}s`);
 
     // Real sleep (anti-ban)
     await sleep(delayMs); 
     clearInterval(countdownInterval);
 
     if (STATE.waAbort) break;
-    document.getElementById('waProgressLabel').textContent = `Sending to ${lead.name || lead.business_name || 'Customer'}…`;
+    safeSetText('waProgressLabel', `Sending to ${lead.name || lead.business_name || 'Customer'}…`);
 
     // Real sending via Baileys Backend
     let success = false;
@@ -1518,7 +1523,7 @@ async function startWhatsApp() {
           .replace(/{{date}}/g, new Date().toLocaleDateString());
       }
 
-      document.getElementById('waProgressLabel').textContent = `Sending to ${lead.name || lead.business_name || 'Customer'}…`;
+      safeSetText('waProgressLabel', `Sending to ${lead.name || lead.business_name || 'Customer'}…`);
       const res = await fetch(`${backendUrl}/send-message`, {
         method: 'POST',
         headers: { 
@@ -1563,8 +1568,9 @@ async function startWhatsApp() {
 
     STATE.msgSent++;
     const pct = Math.round(((i + 1) / total) * 100);
-    document.getElementById('waBar').style.width = pct + '%';
-    document.getElementById('waCount').textContent = `${i + 1} / ${total}`;
+    const waBarEl = document.getElementById('waBar');
+    if (waBarEl) waBarEl.style.width = pct + '%';
+    safeSetText('waCount', `${i + 1} / ${total}`);
     updateWaStats();
     updateMonitor();
 
@@ -1572,17 +1578,17 @@ async function startWhatsApp() {
   }
 
   STATE.isWaSending = false;
-  document.getElementById('startWaBtn').style.display = 'flex';
-  document.getElementById('pauseWaBtn').style.display = 'none';
-  document.getElementById('stopWaBtn').style.display = 'none';
-  document.getElementById('waNextSend').style.display = 'none';
+  safeSetStyle('startWaBtn', 'display', 'flex');
+  safeSetStyle('pauseWaBtn', 'display', 'none');
+  safeSetStyle('stopWaBtn', 'display', 'none');
+  safeSetStyle('waNextSend', 'display', 'none');
 
   if (STATE.waAbort) {
     setStepBadge('step3', 'Stopped', 'error');
     addLog(`WA Outreach stopped. ${STATE.waSent} messages sent.`, 'warn');
   } else {
     setStepBadge('step3', `Done (${STATE.waSent}/${total})`, 'success');
-    document.getElementById('waProgressLabel').textContent = `✓ Campaign Done — ${STATE.waSent} sent`;
+    safeSetText('waProgressLabel', `✓ Campaign Done — ${STATE.waSent} sent`);
     addLog(`✓ WA outreach complete! ${STATE.waSent} sent, ${STATE.waReplied} replies.`, 'ok');
     updateGlobalStatus('Campaign done', 'active');
   }
@@ -1592,13 +1598,13 @@ function pauseWhatsApp() {
   STATE.isWaPaused = !STATE.isWaPaused;
   const btn = document.getElementById('pauseWaBtn');
   if (STATE.isWaPaused) {
-    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Resume`;
+    if (btn) btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Resume`;
     setStepBadge('step3', 'Paused', 'error');
-    document.getElementById('waProgressLabel').textContent = 'Paused…';
+    safeSetText('waProgressLabel', 'Paused…');
     addLog('WA sending paused by user.', 'warn');
     updateGlobalStatus('WA paused', 'warning');
   } else {
-    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`;
+    if (btn) btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`;
     setStepBadge('step3', 'Sending…', 'running');
     addLog('WA sending resumed.', 'ok');
     updateGlobalStatus('WA outreach sending', 'warning');
@@ -1609,10 +1615,10 @@ function stopWhatsApp() {
   STATE.waAbort = true;
   STATE.isWaSending = false;
   STATE.isWaPaused = false;
-  document.getElementById('startWaBtn').style.display = 'flex';
-  document.getElementById('pauseWaBtn').style.display = 'none';
-  document.getElementById('stopWaBtn').style.display = 'none';
-  document.getElementById('waNextSend').style.display = 'none';
+  safeSetStyle('startWaBtn', 'display', 'flex');
+  safeSetStyle('pauseWaBtn', 'display', 'none');
+  safeSetStyle('stopWaBtn', 'display', 'none');
+  safeSetStyle('waNextSend', 'display', 'none');
   addLog('WA sending stopped by user.', 'warn');
 }
 
