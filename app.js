@@ -337,15 +337,34 @@ function closeSettingsModal() {
 // Returns the active field map reading live UI inputs,
 // falling back to the stored AIRTABLE_FIELD_MAP defaults.
 function getActiveFieldMap() {
+  const mapStr = localStorage.getItem('leadGenFieldMap');
+  if (mapStr) {
+    try {
+      return JSON.parse(mapStr);
+    } catch(e) {}
+  }
+
   const keys = ['name','phone','address','city','state','rating','reviewsCount',
                  'instagram','website','mapsUrl','category','description', 'status', 'leadScore'];
   const map = {};
+  let uiHasInputs = false;
   keys.forEach(k => {
     const el = document.getElementById(`mf_${k}`);
-    const val = el ? el.value.trim() : '';
-    if (val) map[k] = val;  // skip empty → field won't be sent
+    if (el) {
+      uiHasInputs = true;
+      const val = el.value.trim();
+      if (val) map[k] = val;
+    }
   });
-  return map;
+
+  if (uiHasInputs && Object.keys(map).length > 0) return map;
+
+  return {
+    name: 'business_name', phone: 'phone', address: 'address', city: 'city', state: 'area',
+    website: 'website', instagram: 'instagram', mapsUrl: 'maps_url', rating: 'rating',
+    reviewsCount: 'review_count', category: 'cafe_type', description: 'description',
+    status: 'status', leadScore: 'lead_score'
+  };
 }
 
 function saveMappingConfig() {
