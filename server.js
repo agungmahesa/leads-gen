@@ -98,7 +98,10 @@ function getAirtableConfig() {
 }
 
 app.get('/api/config', verifyToken, (req, res) => {
-    res.json(getAirtableConfig());
+    res.json({
+        ...getAirtableConfig(),
+        aiConfig
+    });
 });
 
 app.post('/api/config', verifyToken, (req, res) => {
