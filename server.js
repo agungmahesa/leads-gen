@@ -417,6 +417,75 @@ app.post('/api/reconnect-wa', verifyToken, (req, res) => {
     }
 });
 
+// ─── Airtable Proxy API ─────────────────────────────
+// Airtable strictly blocks CORS for PATs from local/file origins, so we must proxy requests through backend.
+app.post('/api/airtable-sync', verifyToken, async (req, res) => {
+    const { apiKey, baseId, tableName, records } = req.body;
+    if (!apiKey || !baseId || !tableName || !records) return res.status(400).json({ error: 'Missing Airtable credentials or records.' });
+    
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const AIRTABLE_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
+        const result = await fetch(AIRTABLE_URL, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records })
+        });
+        const data = await result.json();
+        if (!result.ok) {
+            return res.status(result.status).json({ error: data?.error?.message || data?.error?.type || result.statusText });
+        }
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/airtable-fetch', verifyToken, async (req, res) => {
+    const { apiKey, baseId, tableName, offset, filterByFormula } = req.body;
+    if (!apiKey || !baseId || !tableName) return res.status(400).json({ error: 'Missing Airtable credentials.' });
+    
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const urlObj = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`);
+        if (offset) urlObj.searchParams.append('offset', offset);
+        if (filterByFormula) urlObj.searchParams.append('filterByFormula', filterByFormula);
+        
+        const result = await fetch(urlObj.toString(), {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const data = await result.json();
+        if (!result.ok) {
+            return res.status(result.status).json({ error: data?.error?.message || data?.error?.type || result.statusText });
+        }
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/airtable-update', verifyToken, async (req, res) => {
+    const { apiKey, baseId, tableName, records } = req.body;
+    if (!apiKey || !baseId || !tableName || !records) return res.status(400).json({ error: 'Missing Airtable credentials or records.' });
+    
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const AIRTABLE_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
+        const result = await fetch(AIRTABLE_URL, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records })
+        });
+        const data = await result.json();
+        if (!result.ok) {
+            return res.status(result.status).json({ error: data?.error?.message || data?.error?.type || result.statusText });
+        }
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Socket.io Logic ──────────────────────────────
 
 io.on("connection", (client) => {

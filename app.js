@@ -6,7 +6,7 @@
 
 // ─── AUTHENTICATION CHECK ─────────────────────────
 const APP_TOKEN = localStorage.getItem('appToken');
-const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
 const backendUrl = isLocal ? 'http://localhost:3001' : 'https://leads-gen-production-461b.up.railway.app';
 
 if (!APP_TOKEN && window.location.pathname !== '/login.html' && !window.location.pathname.endsWith('login.html')) {
@@ -1116,12 +1116,7 @@ async function sendToAirtable() {
 
   // ── Batch in groups of 10 (Airtable limit) ───────
   const BATCH = 10;
-  const AIRTABLE_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
-  const headers = {
-    'Authorization': `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-  };
-
+  
   let processed = 0;
 
   for (let i = 0; i < total; i += BATCH) {
@@ -1131,13 +1126,13 @@ async function sendToAirtable() {
     const records = batch.map(buildRecord);
 
     try {
-      document.getElementById('airtableProgressLabel').textContent =
-        `Inserting records ${i + 1}–${Math.min(i + BATCH, total)} of ${total}…`;
+      safeSetText('airtableProgressLabel', `Inserting records ${i + 1}–${Math.min(i + BATCH, total)} of ${total}…`);
 
-      const res = await fetch(AIRTABLE_URL, {
+      // Use backend proxy to avoid CORS
+      const res = await fetch(`${backendUrl}/api/airtable-sync`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ records }),
+        headers: { 'Authorization': `Bearer ${APP_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, baseId, tableName, records }),
       });
 
       const data = await res.json();
@@ -1234,8 +1229,7 @@ async function fetchLeadsFromAirtableWithStatus() {
   }
 
   const limit = safeGet('sendLimit')?.value || 100;
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?maxRecords=${limit}${filter}`;
-
+  
   const btn = document.getElementById('btnLoadAirtable');
   if(btn) {
     btn.disabled = true;
@@ -1246,10 +1240,18 @@ async function fetchLeadsFromAirtableWithStatus() {
   setStepBadge('step3', 'Fetching…', 'running');
 
   try {
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+    const res = await fetch(`${backendUrl}/api/airtable-fetch`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${APP_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey, baseId, tableName,
+        filterByFormula: filter ? formula : '',
+        limit
+      })
+    });
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data?.error?.message || res.statusText);
+    if (!res.ok) throw new Error(data?.error || data?.error?.message || res.statusText);
 
     if (!data.records || !data.records.length) {
       addLog(`Airtable: Tidak ada lead dengan status "${targetStatus || 'All'}".`, 'warn');
@@ -1373,22 +1375,19 @@ async function updateAirtableStatus(recordId, newStatus) {
   const fieldMap = getActiveFieldMap();
   const statusFieldName = fieldMap.status || 'status';
 
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}/${recordId}`;
-
   try {
-    const res = await fetch(url, {
-      method: 'PATCH',
+    const records = [{ id: recordId, fields: { [statusFieldName]: newStatus } }];
+    const res = await fetch(`${backendUrl}/api/airtable-update`, {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${APP_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        fields: { [statusFieldName]: newStatus }
-      })
+      body: JSON.stringify({ apiKey, baseId, tableName, records })
     });
     if (!res.ok) {
       const data = await res.json();
-      throw new Error(data?.error?.message || 'Update failed');
+      throw new Error(data?.error || data?.error?.message || 'Update failed');
     }
     return true;
   } catch (err) {
