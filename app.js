@@ -9,8 +9,23 @@ const APP_TOKEN = localStorage.getItem('appToken');
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
 const backendUrl = isLocal ? 'http://localhost:3001' : 'https://leads-gen-production-461b.up.railway.app';
 
-if (!APP_TOKEN && window.location.pathname !== '/login.html' && !window.location.pathname.endsWith('login.html')) {
+const isLoginPage = window.location.pathname === '/login.html' || window.location.pathname.endsWith('login.html');
+
+if (!APP_TOKEN && !isLoginPage) {
   window.location.href = '/login.html';
+} else if (APP_TOKEN && !isLoginPage) {
+  // Validate token is still valid for this backend (local vs production may differ)
+  fetch(`${backendUrl}/api/config`, { headers: { 'Authorization': `Bearer ${APP_TOKEN}` } })
+    .then(r => {
+      if (r.status === 403 || r.status === 401) {
+        // Token is invalid/expired — clear and redirect to login
+        localStorage.removeItem('appToken');
+        localStorage.removeItem('savedUsername');
+        localStorage.removeItem('savedPassword');
+        window.location.href = '/login.html';
+      }
+    })
+    .catch(() => {}); // Network error — don't redirect
 }
 
 // ─── UTILS ────────────────────────────────────────
