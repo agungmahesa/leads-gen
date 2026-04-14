@@ -1188,8 +1188,10 @@ async function sendToAirtable() {
   // ── Build a single Airtable record from a lead ───
   function buildRecord(lead) {
     const fields = {};
-    const fieldMap = getActiveFieldMap();
+    const fieldMap = getActiveFieldMap() || {};
     Object.entries(fieldMap).forEach(([leadKey, airtableField]) => {
+      if (!airtableField || typeof airtableField !== 'string') return;
+
       let val = lead[leadKey];
       if (val !== undefined && val !== null && val !== '' && val !== '-') {
         // Phone Standardization
@@ -1203,6 +1205,11 @@ async function sendToAirtable() {
         fields[airtableField] = typeof val === 'number' ? val : String(val);
       }
     });
+    
+    // Explicit Fallbacks for Safety
+    if (!fields[fieldMap.status] && fieldMap.status) fields[fieldMap.status] = 'new';
+    if (!fields[fieldMap.leadScore] && fieldMap.leadScore) fields[fieldMap.leadScore] = 1;
+
     return { fields };
   }
 
