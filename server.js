@@ -282,7 +282,7 @@ async function connectToWhatsApp() {
         auth: state,
         printQRInTerminal: true,
         logger: pino({ level: "silent" }),
-        browser: ["LeadGenDashboard", "Chrome", "1.0"]
+        browser: Baileys.Browsers.macOS('Desktop')
     });
 
 // socket.ev.on("creds.update", saveCreds); // Moved below
@@ -303,7 +303,14 @@ async function connectToWhatsApp() {
             qrCodeData = null;
             io.emit("status", connectionStatus);
             console.log("Connection closed. Reconnecting:", shouldReconnect);
-            if (shouldReconnect) connectToWhatsApp();
+            
+            if (shouldReconnect) {
+                connectToWhatsApp();
+            } else {
+                console.log("Session logged out or corrupted. Wiping auth state for a fresh QR...");
+                if (fs.existsSync(AUTH_PATH)) fs.rmSync(AUTH_PATH, { recursive: true, force: true });
+                connectToWhatsApp(); // Restart fresh
+            }
         } else if (connection === "open") {
             connectionStatus = "connected";
             qrCodeData = null;
