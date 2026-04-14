@@ -305,19 +305,27 @@ function startBackendHeartbeat() {
     const dot = document.getElementById('backendStatusDot');
     const text = document.getElementById('backendStatusText');
     
-    try {
-      const res = await fetch(`${backendUrl}/status`);
-      if (res.ok) {
-        dot.className = 'status-dot status-dot--success';
-        text.textContent = 'Backend: Online';
-      } else {
-        throw new Error();
-      }
-    } catch (e) {
-      dot.className = 'status-dot status-dot--error';
-      text.textContent = 'Backend: Offline';
-    }
-  };
+        try {
+            const res = await fetch(`${backendUrl}/status`);
+            if (res.ok) {
+                const data = await res.json();
+                if (dot) dot.className = 'status-dot status-dot--success';
+                if (text) text.textContent = 'Backend: Online';
+                
+                // Fallback: Sync connection status and QR from backend
+                if (data.status) updateConnectionStatus(data.status);
+                if (data.qr) {
+                    const qrImg = document.getElementById('qrCode');
+                    if (qrImg) qrImg.src = data.qr;
+                }
+            } else {
+                throw new Error();
+            }
+        } catch (e) {
+            if (dot) dot.className = 'status-dot status-dot--error';
+            if (text) text.textContent = 'Backend: Offline';
+        }
+    };
   
   checkStatus();
   backendHeartbeat = setInterval(checkStatus, 5000);
