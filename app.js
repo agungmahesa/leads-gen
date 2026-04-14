@@ -1144,152 +1144,166 @@ function deleteSelectedLeads() {
 }
 
 async function sendToAirtable() {
-  // Use selected leads — or ALL scraped leads if none selected (pipeline.html workflow)
-  const leadsToSync = STATE.selectedLeads.length
-    ? STATE.selectedLeads.map(idx => STATE.scrapedLeads[idx])
-    : STATE.scrapedLeads;
+  try {
+    // Use selected leads — or ALL scraped leads if none selected (pipeline.html workflow)
+    const leadsToSync = STATE.selectedLeads.length
+      ? STATE.selectedLeads.map(idx => STATE.scrapedLeads[idx])
+      : STATE.scrapedLeads;
 
-  if (!leadsToSync.length) {
-    showError('Tidak ada lead! Upload file atau scrape data terlebih dahulu.');
-    return;
-  }
+    if (!leadsToSync.length) {
+      showError('Tidak ada lead! Upload file atau scrape data terlebih dahulu.');
+      return;
+    }
 
-  // ── Validate Config ──────────────────────────────
-  const apiKey = CONFIG.airtableKey || '';
-  const baseId = CONFIG.airtableBase || '';
-  const tableName = CONFIG.airtableTable || '';
+    // ── Validate Config ──────────────────────────────
+    const apiKey = CONFIG.airtableKey || '';
+    const baseId = CONFIG.airtableBase || '';
+    const tableName = CONFIG.airtableTable || '';
 
-  if (!apiKey) { showError('Airtable API Key belum diisi! Set di Railway Environment Variables: AIRTABLE_KEY'); return; }
-  if (!baseId) { showError('Airtable Base ID belum diisi! Set: AIRTABLE_BASE'); return; }
-  if (!tableName) { showError('Airtable Table Name belum diisi! Set: AIRTABLE_TABLE'); return; }
+    if (!apiKey) { showError('Airtable API Key belum diisi! Set di Railway Environment Variables: AIRTABLE_KEY'); return; }
+    if (!baseId) { showError('Airtable Base ID belum diisi! Set: AIRTABLE_BASE'); return; }
+    if (!tableName) { showError('Airtable Table Name belum diisi! Set: AIRTABLE_TABLE'); return; }
 
-  STATE.isInsertingActive = true;
-  STATE.insertAbort = false;
-  STATE.insertSuccess = 0;
-  STATE.insertFailed = 0;
+    STATE.isInsertingActive = true;
+    STATE.insertAbort = false;
+    STATE.insertSuccess = 0;
+    STATE.insertFailed = 0;
 
-  const selectedLeadObjects = leadsToSync;
-  const total = selectedLeadObjects.length;
+    const selectedLeadObjects = leadsToSync;
+    const total = selectedLeadObjects.length;
 
-  // Support both old (airtableProgress) and new (airtableProgressBox) element IDs
-  safeSetStyle('sendAirtableBtn', 'display', 'none');
-  safeSetStyle('stopAirtableBtn', 'display', 'flex');
-  const progressEl = document.getElementById('airtableProgressBox') || document.getElementById('airtableProgress');
-  if (progressEl) progressEl.style.display = 'flex';
-  const barEl = document.getElementById('airtableBar');
-  if (barEl) barEl.style.width = '0%';
-  const countEl = document.getElementById('airtableCount');
-  if (countEl) countEl.textContent = `0 / ${total}`;
+    // Support both old (airtableProgress) and new (airtableProgressBox) element IDs
+    safeSetStyle('sendAirtableBtn', 'display', 'none');
+    safeSetStyle('stopAirtableBtn', 'display', 'flex');
+    const progressEl = document.getElementById('airtableProgressBox') || document.getElementById('airtableProgress');
+    if (progressEl) progressEl.style.display = 'flex';
+    const barEl = document.getElementById('airtableBar');
+    if (barEl) barEl.style.width = '0%';
+    const countEl = document.getElementById('airtableCount');
+    if (countEl) countEl.textContent = `0 / ${total}`;
 
-  setStepBadge('step2', 'Inserting…', 'running');
-  updateGlobalStatus('Airtable insert', 'warning');
-  addLog(`Sending ${total} leads to Airtable (Base: ${baseId}, Table: ${tableName})…`, 'info');
+    setStepBadge('step2', 'Inserting…', 'running');
+    updateGlobalStatus('Airtable insert', 'warning');
+    addLog(`Sending ${total} leads to Airtable (Base: ${baseId}, Table: ${tableName})…`, 'info');
 
-  // ── Build a single Airtable record from a lead ───
-  function buildRecord(lead) {
-    const fields = {};
-    const fieldMap = getActiveFieldMap() || {};
-    Object.entries(fieldMap).forEach(([leadKey, airtableField]) => {
-      if (!airtableField || typeof airtableField !== 'string') return;
+    // ── Build a single Airtable record from a lead ───
+    function buildRecord(lead) {
+      try {
+        const fields = {};
+        const fieldMap = getActiveFieldMap() || {};
+        Object.entries(fieldMap).forEach(([leadKey, airtableField]) => {
+          if (!airtableField || typeof airtableField !== 'string') return;
 
-      let val = lead[leadKey];
-      if (val !== undefined && val !== null && val !== '' && val !== '-') {
-        // Phone Standardization
-        if (leadKey === 'phone' || airtableField.toLowerCase().includes('phone')) {
-          let cleanPhone = String(val).replace(/\D/g, "");
-          if (cleanPhone.startsWith("0")) {
-              cleanPhone = "62" + cleanPhone.slice(1);
+          let val = lead[leadKey];
+          if (val !== undefined && val !== null && val !== '' && val !== '-') {
+            // Phone Standardization
+            if (leadKey === 'phone' || airtableField.toLowerCase().includes('phone')) {
+              let cleanPhone = String(val).replace(/\D/g, "");
+              if (cleanPhone.startsWith("0")) {
+                  cleanPhone = "62" + cleanPhone.slice(1);
+              }
+              val = cleanPhone ? "+" + cleanPhone : val;
+            }
+            fields[airtableField] = typeof val === 'number' ? val : String(val);
           }
-          val = cleanPhone ? "+" + cleanPhone : val;
+        });
+        
+        // Explicit Fallbacks for Safety
+        if (!fields[fieldMap.status] && fieldMap.status) fields[fieldMap.status] = 'new';
+        if (!fields[fieldMap.leadScore] && fieldMap.leadScore) fields[fieldMap.leadScore] = 1;
+
+        return { fields };
+      } catch(err) {
+        throw new Error(`Error building record for ${lead.name || 'Unknown'}: ${err.message}`);
+      }
+    }
+
+    // ── Batch in groups of 10 (Airtable limit) ───────
+    const BATCH = 10;
+    let processed = 0;
+
+    for (let i = 0; i < total; i += BATCH) {
+      if (STATE.insertAbort) break;
+
+      const batch = selectedLeadObjects.slice(i, i + BATCH);
+      const records = batch.map(buildRecord);
+
+      try {
+        safeSetText('airtableProgressLabel', `Inserting records ${i + 1}–${Math.min(i + BATCH, total)} of ${total}…`);
+
+        // Use backend proxy to avoid CORS
+        const res = await fetch(`${backendUrl}/api/airtable-sync`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${APP_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey, baseId, tableName, records }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          // Airtable returns {error: {type, message}} on failure
+          const errMsg = data?.error?.message || data?.error?.type || res.statusText;
+          throw new Error(`${res.status} — ${errMsg}`);
         }
-        fields[airtableField] = typeof val === 'number' ? val : String(val);
-      }
-    });
-    
-    // Explicit Fallbacks for Safety
-    if (!fields[fieldMap.status] && fieldMap.status) fields[fieldMap.status] = 'new';
-    if (!fields[fieldMap.leadScore] && fieldMap.leadScore) fields[fieldMap.leadScore] = 1;
 
-    return { fields };
-  }
+        const inserted = data.records?.length || batch.length;
+        STATE.insertSuccess += inserted;
+        addLog(`✓ Batch ${Math.ceil((i + 1) / BATCH)}: ${inserted} records inserted`, 'ok');
 
-  // ── Batch in groups of 10 (Airtable limit) ───────
-  const BATCH = 10;
-  
-  let processed = 0;
+      } catch (err) {
+        STATE.insertFailed += batch.length;
+        addLog(`✗ Batch error: ${err.message}`, 'error');
+        showError(`Airtable Error: ${err.message}`);
 
-  for (let i = 0; i < total; i += BATCH) {
-    if (STATE.insertAbort) break;
-
-    const batch = selectedLeadObjects.slice(i, i + BATCH);
-    const records = batch.map(buildRecord);
-
-    try {
-      safeSetText('airtableProgressLabel', `Inserting records ${i + 1}–${Math.min(i + BATCH, total)} of ${total}…`);
-
-      // Use backend proxy to avoid CORS
-      const res = await fetch(`${backendUrl}/api/airtable-sync`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${APP_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, baseId, tableName, records }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        // Airtable returns {error: {type, message}} on failure
-        const errMsg = data?.error?.message || data?.error?.type || res.statusText;
-        throw new Error(`${res.status} — ${errMsg}`);
+        // Stop on auth errors (401/403)
+        if (err.message.startsWith('401') || err.message.startsWith('403')) {
+          addLog('Stopped: check your API Key and permissions.', 'error');
+          break;
+        }
       }
 
-      const inserted = data.records?.length || batch.length;
-      STATE.insertSuccess += inserted;
-      addLog(`✓ Batch ${Math.ceil((i + 1) / BATCH)}: ${inserted} records inserted`, 'ok');
+      processed = Math.min(i + BATCH, total);
+      const pct = Math.round((processed / total) * 100);
+      const barEl2 = document.getElementById('airtableBar');
+      const cntEl2 = document.getElementById('airtableCount');
+      if (barEl2) barEl2.style.width = pct + '%';
+      if (cntEl2) cntEl2.textContent = `${processed} / ${total}`;
+      safeSetText('insertSuccess', `✓ ${STATE.insertSuccess} inserted`);
+      safeSetText('insertFailed', `✗ ${STATE.insertFailed} failed`);
+      updateMonitor();
 
-    } catch (err) {
-      STATE.insertFailed += batch.length;
-      addLog(`✗ Batch error: ${err.message}`, 'error');
-      showError(`Airtable Error: ${err.message}`);
+      // Small delay between batches to respect rate limits (5 req/s)
+      if (i + BATCH < total && !STATE.insertAbort) await sleep(250);
+    } // end for loop
 
-      // Stop on auth errors (401/403)
-      if (err.message.startsWith('401') || err.message.startsWith('403')) {
-        addLog('Stopped: check your API Key and permissions.', 'error');
-        break;
-      }
-    }
+    STATE.isInsertingActive = false;
+    safeSetStyle('sendAirtableBtn', 'display', 'flex');
+    safeSetStyle('stopAirtableBtn', 'display', 'none');
 
-    processed = Math.min(i + BATCH, total);
-    const pct = Math.round((processed / total) * 100);
-    const barEl2 = document.getElementById('airtableBar');
-    const cntEl2 = document.getElementById('airtableCount');
-    if (barEl2) barEl2.style.width = pct + '%';
-    if (cntEl2) cntEl2.textContent = `${processed} / ${total}`;
-    safeSetText('insertSuccess', `✓ ${STATE.insertSuccess} inserted`);
-    safeSetText('insertFailed', `✗ ${STATE.insertFailed} failed`);
-    updateMonitor();
-
-    // Small delay between batches to respect rate limits (5 req/s)
-    if (i + BATCH < total && !STATE.insertAbort) await sleep(250);
-  } // end for loop
-
-  STATE.isInsertingActive = false;
-  safeSetStyle('sendAirtableBtn', 'display', 'flex');
-  safeSetStyle('stopAirtableBtn', 'display', 'none');
-
-  if (STATE.insertAbort) {
-    setStepBadge('step2', 'Stopped', 'error');
-    addLog(`Airtable stopped. ${STATE.insertSuccess} inserted, ${STATE.insertFailed} failed.`, 'warn');
-  } else {
-    if (STATE.insertFailed === 0) {
-      setStepBadge('step2', `Done (${STATE.insertSuccess}/${total})`, 'success');
-      safeSetText('airtableProgressLabel', `✓ Complete — ${STATE.insertSuccess} records inserted`);
-      updateGlobalStatus('Step 2 done', 'active');
+    if (STATE.insertAbort) {
+      setStepBadge('step2', 'Stopped', 'error');
+      addLog(`Airtable stopped. ${STATE.insertSuccess} inserted, ${STATE.insertFailed} failed.`, 'warn');
     } else {
-      setStepBadge('step2', `Partial (${STATE.insertSuccess}/${total})`, 'error');
-      safeSetText('airtableProgressLabel', `⚠ ${STATE.insertSuccess} inserted, ${STATE.insertFailed} failed`);
+      if (STATE.insertFailed === 0) {
+        setStepBadge('step2', `Done (${STATE.insertSuccess}/${total})`, 'success');
+        safeSetText('airtableProgressLabel', `✓ Complete — ${STATE.insertSuccess} records inserted`);
+        updateGlobalStatus('Step 2 done', 'active');
+      } else {
+        setStepBadge('step2', `Partial (${STATE.insertSuccess}/${total})`, 'error');
+        safeSetText('airtableProgressLabel', `⚠ ${STATE.insertSuccess} inserted, ${STATE.insertFailed} failed`);
+      }
+      addLog(`Airtable done: ${STATE.insertSuccess} success, ${STATE.insertFailed} failed.`, STATE.insertFailed ? 'warn' : 'ok');
+      showToast(`✅ Sync selesai! ${STATE.insertSuccess} leads berhasil masuk ke Airtable.`);
     }
-    addLog(`Airtable done: ${STATE.insertSuccess} success, ${STATE.insertFailed} failed.`, STATE.insertFailed ? 'warn' : 'ok');
-    showToast(`✅ Sync selesai! ${STATE.insertSuccess} leads berhasil masuk ke Airtable.`);
+
+  } catch (criticalError) {
+    // CATCH ALL GLOBAL SILENT ERRORS AND PRINT TO UI
+    STATE.isInsertingActive = false;
+    safeSetStyle('sendAirtableBtn', 'display', 'flex');
+    safeSetStyle('stopAirtableBtn', 'display', 'none');
+    addLog(`🔥🔥 CRITICAL JS ERROR in sendToAirtable: ${criticalError.message}`, 'error');
+    console.error('Critical Error in sendToAirtable:', criticalError);
+    showError(`Error System: ${criticalError.message}`);
   }
 }
 
