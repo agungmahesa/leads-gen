@@ -29,6 +29,10 @@ const io = new Server(server, {
 
 app.use(express.json());
 
+// ─── Serve Static Frontend Files ─────────────────
+// This allows accessing index.html, pipeline.html, etc. via http://localhost:3001
+app.use(express.static(path.join(__dirname)));
+
 // ─── Enable CORS for Frontend Fetch Requests ──────
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
