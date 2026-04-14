@@ -137,11 +137,15 @@
       }
 
       body.innerHTML = chats.map(c => {
-        const msgs = c.messages || [];
-        const last = msgs[msgs.length - 1]?.text || '...';
-        const time = msgs[msgs.length - 1]?.timestamp
-          ? new Date(msgs[msgs.length - 1].timestamp).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
-          : '';
+        const lines = (c.history || '').split('\n').filter(l => l.trim().length > 0);
+        let last = '...';
+        if (lines.length > 0) {
+           const lastLine = lines[lines.length - 1];
+           // Strip prefixes like "Outreach: " or "Customer: "
+           last = lastLine.replace(/^(Outreach|Customer|Human|System|AI):\s*/i, '');
+           if (last.length > 40) last = last.substring(0, 40) + '...';
+        }
+        const time = ''; // timestamps are not tracked in plain string history yet
         const isAI = c.aiActive;
         return `
           <div class="chat-item ${activeChatId === c.id ? 'active' : ''}" onclick="openChat('${c.id}')">

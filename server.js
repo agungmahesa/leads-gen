@@ -394,7 +394,7 @@ async function connectToWhatsApp() {
 // ─── Protected API Endpoints ──────────────────────
 
 app.post("/send-message", verifyToken, async (req, res) => {
-    const { phone, message } = req.body;
+    const { phone, message, recordId } = req.body;
 
     if (!socket || connectionStatus !== "connected") {
         return res.status(500).json({ error: "WhatsApp not connected" });
@@ -405,17 +405,40 @@ app.post("/send-message", verifyToken, async (req, res) => {
     }
 
     try {
-        // Simple phone format fixing (remove +, add 62 if needed)
-        // Cast to String first to prevent crashing if Airtable returns a raw integer
         let formattedPhone = String(phone).replace(/\D/g, "");
-        if (formattedPhone.startsWith("0")) {
-            formattedPhone = "62" + formattedPhone.slice(1);
-        }
-        if (!formattedPhone.endsWith("@s.whatsapp.net")) {
-            formattedPhone += "@s.whatsapp.net";
-        }
+        if (formattedPhone.startsWith("0")) formattedPhone = "62" + formattedPhone.slice(1);
+        if (!formattedPhone.endsWith("@s.whatsapp.net")) formattedPhone += "@s.whatsapp.net";
 
         const result = await socket.sendMessage(formattedPhone, { text: message });
+
+        // Update Chat History in Airtable if recordId is provided
+        if (recordId) {
+            try {
+                const sys = getAirtableConfig();
+                if (sys.airtableBase && sys.airtableTable && sys.airtableKey) {
+                    const url = `https://api.airtable.com/v0/${sys.airtableBase}/${encodeURIComponent(sys.airtableTable)}/${recordId}`;
+                    const rt = await fetch(url, { headers: { 'Authorization': `Bearer ${sys.airtableKey}` }});
+                    if (rt.ok) {
+                        const data = await rt.json();
+                        let chatHistory = data.fields.Chat_History || data.fields.chat_history || "";
+                        chatHistory += `\nOutreach: ${message}`;
+                        
+                        const updatePayload = { fields: {} };
+                        if (data.fields.chat_history !== undefined) updatePayload.fields.chat_history = chatHistory;
+                        else updatePayload.fields.Chat_History = chatHistory;
+
+                        await fetch(url, {
+                            method: 'PATCH',
+                            headers: { 'Authorization': `Bearer ${sys.airtableKey}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updatePayload)
+                        });
+                    }
+                }
+            } catch (historyErr) {
+                console.error("Failed to update history on send-message:", historyErr);
+            }
+        }
+
         res.json({ success: true, result });
     } catch (err) {
         logger.error(err, "Send Error");
