@@ -1755,6 +1755,7 @@ function updateDelayLabel() {
 function updateGlobalStatus(text, state) {
   const dot = document.getElementById('globalStatusDot');
   const label = document.getElementById('globalStatusLabel');
+  if (!label || !dot) return;
   label.textContent = text;
   dot.className = 'status-dot';
   if (state === 'active') dot.classList.add('active');
