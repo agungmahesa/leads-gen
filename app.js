@@ -157,6 +157,64 @@ async function saveAirtableConfig() {
   }
 }
 
+// ─── Sync Config from Production (Local Dev Only) ─
+async function syncConfigFromProduction() {
+  const statusEl = document.getElementById('syncProdStatus');
+  const btn = document.getElementById('syncProdBtn');
+  const PROD_URL = 'https://leads-gen-production-461b.up.railway.app';
+
+  if (statusEl) statusEl.textContent = '⏳ Menghubungi Railway Production...';
+  if (btn) btn.disabled = true;
+
+  try {
+    // Step 1: Login to production to get a token
+    const loginRes = await fetch(`${PROD_URL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        username: localStorage.getItem('savedUsername') || 'admin',
+        password: localStorage.getItem('savedPassword') || prompt('Masukkan password untuk Production Railway:')
+      })
+    });
+
+    if (!loginRes.ok) {
+      throw new Error('Login ke production gagal. Pastikan username/password benar.');
+    }
+
+    const { token: prodToken } = await loginRes.json();
+
+    // Step 2: Call the local sync endpoint with the prod token
+    const syncRes = await fetch(`${backendUrl}/api/sync-from-prod`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: prodToken })
+    });
+
+    const syncData = await syncRes.json();
+    if (!syncRes.ok) throw new Error(syncData.error || 'Sync gagal');
+
+    // Step 3: Reload config from local server
+    await loadConfig();
+
+    if (statusEl) statusEl.innerHTML = `✅ <strong>Berhasil!</strong> Config disinkronkan dari Production. Key: ${syncData.keys?.join(', ')}`;
+    showToast('✅ Config Production berhasil disinkronkan!', false);
+    addLog('Config berhasil ditarik dari Railway Production.', 'ok');
+
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = `❌ Error: ${err.message}`;
+    showError(err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Show the production sync banner only when running locally
+if (isLocal) {
+  const banner = document.getElementById('syncFromProdBanner');
+  if (banner) banner.style.display = 'block';
+}
+
+
 // ─── WhatsApp Socket.io Client ────────────────────
 let socketIo;
 function initWhatsAppSocket() {

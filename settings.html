@@ -24,6 +24,26 @@
 
       <div class="view-content" style="padding: 24px; max-width: 900px; margin: 0 auto;">
         
+        <!-- ✅ LOCAL ONLY: Sync Config from Production -->
+        <div id="syncFromProdBanner" class="card" style="margin-bottom: 24px; border: 1px solid var(--cyan); display:none;">
+          <div class="card-header">
+            <div class="card-icon card-icon--cyan">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </div>
+            <h3 class="card-title" style="color: var(--cyan);">🔄 Local Dev: Sync Config from Production</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: .85rem; margin-bottom: 16px;">
+            Anda sedang menjalankan server <strong>secara lokal</strong>. Klik tombol di bawah untuk secara otomatis mengambil konfigurasi Airtable (API Key, Base ID, Table Name) dari server <strong>Railway Production</strong>.
+          </p>
+          <button class="btn btn-cyan" id="syncProdBtn" onclick="syncConfigFromProduction()" style="width: 100%;">
+            ⬇️ Tarik Config dari Railway Production
+          </button>
+          <div id="syncProdStatus" style="margin-top:12px; font-size:.8rem; color:var(--text-muted);"></div>
+        </div>
+
         <!-- Airtable Settings -->
         <div class="card" style="margin-bottom: 24px;">
            <div class="card-header">

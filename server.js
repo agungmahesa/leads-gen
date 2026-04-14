@@ -103,6 +103,30 @@ app.post('/api/config', verifyToken, (req, res) => {
     res.json({ success: true });
 });
 
+// ── Pull config from Production Railway (local-only convenience endpoint) ──
+app.post('/api/sync-from-prod', async (req, res) => {
+    const prodUrl = 'https://leads-gen-production-461b.up.railway.app';
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    try {
+        const result = await fetch(`${prodUrl}/api/config`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!result.ok) {
+            return res.status(result.status).json({ error: 'Failed to fetch config from production' });
+        }
+        const data = await result.json();
+        // Save to local sys-config.json
+        sysConfig = { ...sysConfig, ...data };
+        fs.writeFileSync('sys-config.json', JSON.stringify(sysConfig));
+        console.log('✅ Successfully synced config from production Railway!');
+        res.json({ success: true, keys: Object.keys(data) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/chats', verifyToken, async (req, res) => {
     const sys = getAirtableConfig();
     const baseId = sys.airtableBase;
@@ -424,7 +448,6 @@ app.post('/api/airtable-sync', verifyToken, async (req, res) => {
     if (!apiKey || !baseId || !tableName || !records) return res.status(400).json({ error: 'Missing Airtable credentials or records.' });
     
     try {
-        const fetch = (await import('node-fetch')).default;
         const AIRTABLE_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
         const result = await fetch(AIRTABLE_URL, {
             method: 'POST',
@@ -446,7 +469,6 @@ app.post('/api/airtable-fetch', verifyToken, async (req, res) => {
     if (!apiKey || !baseId || !tableName) return res.status(400).json({ error: 'Missing Airtable credentials.' });
     
     try {
-        const fetch = (await import('node-fetch')).default;
         const urlObj = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`);
         if (offset) urlObj.searchParams.append('offset', offset);
         if (filterByFormula) urlObj.searchParams.append('filterByFormula', filterByFormula);
@@ -469,7 +491,6 @@ app.post('/api/airtable-update', verifyToken, async (req, res) => {
     if (!apiKey || !baseId || !tableName || !records) return res.status(400).json({ error: 'Missing Airtable credentials or records.' });
     
     try {
-        const fetch = (await import('node-fetch')).default;
         const AIRTABLE_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
         const result = await fetch(AIRTABLE_URL, {
             method: 'PATCH',
