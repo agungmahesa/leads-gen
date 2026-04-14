@@ -1301,9 +1301,9 @@ async function sendToAirtable() {
     STATE.isInsertingActive = false;
     safeSetStyle('sendAirtableBtn', 'display', 'flex');
     safeSetStyle('stopAirtableBtn', 'display', 'none');
-    addLog(`🔥🔥 CRITICAL JS ERROR in sendToAirtable: ${criticalError.message}`, 'error');
+    addLog(`🔥🔥 CRITICAL JS ERROR in sendToAirtable: <br><pre style="font-size:10px;text-align:left;">${criticalError.stack}</pre>`, 'error');
     console.error('Critical Error in sendToAirtable:', criticalError);
-    showError(`Error System: ${criticalError.message}`);
+    showError(`Error System: Cek bagian "Pipeline Log" di halaman ini untuk detail error.`);
   }
 }
 
